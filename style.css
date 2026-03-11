@@ -1547,6 +1547,17 @@
   text-align: center;
 }
 
+.auth-success {
+  background: color-mix(in oklch, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-4);
+  text-align: center;
+}
+
 .auth-switch {
   margin-top: var(--space-4);
   font-size: var(--text-sm);

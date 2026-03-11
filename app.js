@@ -8,7 +8,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ======== STATE ========
 const state = {
   currentView: "library",
-  authView: "login",  // "login" | "register"
+  authView: "login",  // "login" | "register" | "forgot" | "reset"
   user: null,
   userId: null,       // server-side user ID
   username: null,     // for display
@@ -338,6 +338,10 @@ function render() {
 function renderWelcome() {
   if (state.authView === "register") {
     renderRegister();
+  } else if (state.authView === "forgot") {
+    renderForgotPassword();
+  } else if (state.authView === "reset") {
+    renderResetPassword();
   } else {
     renderLogin();
   }
@@ -351,21 +355,22 @@ function renderLogin() {
       <h1>Welcome to Story Quest!</h1>
       <p>Sign in to continue your reading adventure.</p>
       <div id="auth-error" class="auth-error" style="display:none"></div>
-      <input type="text" class="welcome-input" id="login-username" placeholder="Username" maxlength="20" autocomplete="username">
+      <input type="email" class="welcome-input" id="login-email" placeholder="Email address" maxlength="100" autocomplete="email">
       <input type="password" class="welcome-input" id="login-password" placeholder="Password" maxlength="50" autocomplete="current-password" style="margin-top:var(--space-2)">
       <br>
       <button class="welcome-btn" id="login-btn" disabled>Sign In</button>
-      <p class="auth-switch">Don’t have an account? <a href="#" id="go-register">Create one</a></p>
+      <p class="auth-switch"><a href="#" id="go-forgot">Forgot password?</a></p>
+      <p class="auth-switch">Don\u2019t have an account? <a href="#" id="go-register">Create one</a></p>
     </div>
     <div id="toast-container" class="toast-container"></div>
   `;
-  const uInput = document.getElementById("login-username");
+  const eInput = document.getElementById("login-email");
   const pInput = document.getElementById("login-password");
   const btn = document.getElementById("login-btn");
   const validate = () => {
-    btn.disabled = !uInput.value.trim() || !pInput.value.trim();
+    btn.disabled = !eInput.value.trim() || !pInput.value.trim();
   };
-  uInput.addEventListener("input", validate);
+  eInput.addEventListener("input", validate);
   pInput.addEventListener("input", validate);
   pInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !btn.disabled) doLogin();
@@ -376,7 +381,12 @@ function renderLogin() {
     state.authView = "register";
     renderWelcome();
   });
-  uInput.focus();
+  document.getElementById("go-forgot").addEventListener("click", (e) => {
+    e.preventDefault();
+    state.authView = "forgot";
+    renderWelcome();
+  });
+  eInput.focus();
 }
 
 function renderRegister() {
@@ -388,8 +398,8 @@ function renderRegister() {
       <p>Set up your reading profile to save your progress.</p>
       <div id="auth-error" class="auth-error" style="display:none"></div>
       <input type="text" class="welcome-input" id="reg-display" placeholder="Your name (shown in app)" maxlength="30" autocomplete="off">
-      <input type="text" class="welcome-input" id="reg-username" placeholder="Choose a username" maxlength="20" autocomplete="username" style="margin-top:var(--space-2)">
-      <input type="password" class="welcome-input" id="reg-password" placeholder="Choose a password (4+ characters)" maxlength="50" autocomplete="new-password" style="margin-top:var(--space-2)">
+      <input type="email" class="welcome-input" id="reg-email" placeholder="Parent\u2019s email address" maxlength="100" autocomplete="email" style="margin-top:var(--space-2)">
+      <input type="password" class="welcome-input" id="reg-password" placeholder="Choose a password (6+ characters)" maxlength="50" autocomplete="new-password" style="margin-top:var(--space-2)">
       <input type="password" class="welcome-input" id="reg-password2" placeholder="Confirm password" maxlength="50" autocomplete="new-password" style="margin-top:var(--space-2)">
       <br>
       <button class="welcome-btn" id="reg-btn" disabled>Create Account</button>
@@ -398,14 +408,14 @@ function renderRegister() {
     <div id="toast-container" class="toast-container"></div>
   `;
   const dInput = document.getElementById("reg-display");
-  const uInput = document.getElementById("reg-username");
+  const eInput = document.getElementById("reg-email");
   const pInput = document.getElementById("reg-password");
   const p2Input = document.getElementById("reg-password2");
   const btn = document.getElementById("reg-btn");
   const validate = () => {
-    btn.disabled = !dInput.value.trim() || !uInput.value.trim() || pInput.value.length < 4 || pInput.value !== p2Input.value;
+    btn.disabled = !dInput.value.trim() || !eInput.value.trim() || pInput.value.length < 6 || pInput.value !== p2Input.value;
   };
-  [dInput, uInput, pInput, p2Input].forEach(inp => inp.addEventListener("input", validate));
+  [dInput, eInput, pInput, p2Input].forEach(inp => inp.addEventListener("input", validate));
   p2Input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !btn.disabled) doRegister();
   });
@@ -424,29 +434,28 @@ function showAuthError(msg) {
 }
 
 async function doLogin() {
-  const username = document.getElementById("login-username").value.trim().toLowerCase();
+  const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-password").value;
   const btn = document.getElementById("login-btn");
   btn.disabled = true;
   btn.textContent = "Signing in...";
   try {
-    const email = username + "@storyquest.app";
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) {
-      showAuthError("Invalid username or password");
+      showAuthError("Invalid email or password");
       btn.disabled = false;
       btn.textContent = "Sign In";
       return;
     }
     const user = data.user;
     state.userId = user.id;
-    state.username = user.user_metadata.username || username;
+    state.username = user.user_metadata.display_name || email.split("@")[0];
     // Load progress
     const { data: prog } = await sb.from("progress").select("data").eq("id", user.id).single();
     if (prog && prog.data && prog.data.name) {
       state.user = prog.data;
     } else {
-      state.user = createDefaultUser(user.user_metadata.display_name || username);
+      state.user = createDefaultUser(state.username);
     }
     recordReadingDay();
     saveState();
@@ -460,27 +469,21 @@ async function doLogin() {
 
 async function doRegister() {
   const display_name = document.getElementById("reg-display").value.trim();
-  const username = document.getElementById("reg-username").value.trim().toLowerCase();
+  const email = document.getElementById("reg-email").value.trim();
   const password = document.getElementById("reg-password").value;
   const password2 = document.getElementById("reg-password2").value;
   if (password !== password2) { showAuthError("Passwords don\u2019t match."); return; }
-  if (password.length < 4) { showAuthError("Password must be at least 4 characters."); return; }
-  if (username.length < 2) { showAuthError("Username must be at least 2 characters."); return; }
-
-  // Check if username is taken
-  const { data: existing } = await sb.from("profiles").select("id").eq("username", username).maybeSingle();
-  if (existing) { showAuthError("Username already taken"); return; }
+  if (password.length < 6) { showAuthError("Password must be at least 6 characters."); return; }
 
   const btn = document.getElementById("reg-btn");
   btn.disabled = true;
   btn.textContent = "Creating account...";
   try {
-    const email = username + "@storyquest.app";
     const { data, error } = await sb.auth.signUp({
       email,
       password,
       options: {
-        data: { username, display_name }
+        data: { display_name }
       }
     });
     if (error) {
@@ -491,7 +494,7 @@ async function doRegister() {
     }
     const user = data.user;
     state.userId = user.id;
-    state.username = username;
+    state.username = display_name;
     state.user = createDefaultUser(display_name);
     recordReadingDay();
     // Small delay to let trigger create the rows
@@ -575,7 +578,7 @@ function renderSidebar() {
       </button>
       <button class="theme-toggle-btn logout-btn" onclick="doLogout()" aria-label="Sign out">
         <i data-lucide="log-out" style="width:16px;height:16px"></i>
-        <span>Sign Out (${state.username || ''})</span>
+        <span>Sign Out</span>
       </button>
     </div>
   `;
@@ -2233,6 +2236,130 @@ async function verifyParentPin(pin, inputs) {
   }
 }
 
+function renderForgotPassword() {
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="welcome-screen">
+      <div style="font-size:4rem;margin-bottom:var(--space-4)">📧</div>
+      <h1>Reset Password</h1>
+      <p>Enter your email and we\u2019ll send a link to reset your password.</p>
+      <div id="auth-error" class="auth-error" style="display:none"></div>
+      <div id="auth-success" class="auth-success" style="display:none"></div>
+      <input type="email" class="welcome-input" id="forgot-email" placeholder="Email address" maxlength="100" autocomplete="email">
+      <br>
+      <button class="welcome-btn" id="forgot-btn" disabled>Send Reset Link</button>
+      <p class="auth-switch"><a href="#" id="go-back-login">Back to sign in</a></p>
+    </div>
+    <div id="toast-container" class="toast-container"></div>
+  `;
+  const eInput = document.getElementById("forgot-email");
+  const btn = document.getElementById("forgot-btn");
+  eInput.addEventListener("input", () => {
+    btn.disabled = !eInput.value.trim();
+  });
+  btn.addEventListener("click", doForgotPassword);
+  eInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !btn.disabled) doForgotPassword();
+  });
+  document.getElementById("go-back-login").addEventListener("click", (e) => {
+    e.preventDefault();
+    state.authView = "login";
+    renderWelcome();
+  });
+  eInput.focus();
+}
+
+async function doForgotPassword() {
+  const email = document.getElementById("forgot-email").value.trim();
+  const btn = document.getElementById("forgot-btn");
+  btn.disabled = true;
+  btn.textContent = "Sending...";
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname
+    });
+    if (error) {
+      showAuthError(error.message);
+      btn.disabled = false;
+      btn.textContent = "Send Reset Link";
+      return;
+    }
+    const el = document.getElementById("auth-success");
+    if (el) {
+      el.textContent = "Check your email for a password reset link!";
+      el.style.display = "block";
+    }
+    const errEl = document.getElementById("auth-error");
+    if (errEl) errEl.style.display = "none";
+    btn.textContent = "Email Sent";
+  } catch (e) {
+    showAuthError("Could not connect. Please try again.");
+    btn.disabled = false;
+    btn.textContent = "Send Reset Link";
+  }
+}
+
+function renderResetPassword() {
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="welcome-screen">
+      <div style="font-size:4rem;margin-bottom:var(--space-4)">🔒</div>
+      <h1>Set New Password</h1>
+      <p>Choose a new password for your account.</p>
+      <div id="auth-error" class="auth-error" style="display:none"></div>
+      <div id="auth-success" class="auth-success" style="display:none"></div>
+      <input type="password" class="welcome-input" id="reset-password" placeholder="New password (6+ characters)" maxlength="50" autocomplete="new-password">
+      <input type="password" class="welcome-input" id="reset-password2" placeholder="Confirm new password" maxlength="50" autocomplete="new-password" style="margin-top:var(--space-2)">
+      <br>
+      <button class="welcome-btn" id="reset-btn" disabled>Update Password</button>
+    </div>
+    <div id="toast-container" class="toast-container"></div>
+  `;
+  const pInput = document.getElementById("reset-password");
+  const p2Input = document.getElementById("reset-password2");
+  const btn = document.getElementById("reset-btn");
+  const validate = () => {
+    btn.disabled = pInput.value.length < 6 || pInput.value !== p2Input.value;
+  };
+  pInput.addEventListener("input", validate);
+  p2Input.addEventListener("input", validate);
+  btn.addEventListener("click", doResetPassword);
+  p2Input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !btn.disabled) doResetPassword();
+  });
+  pInput.focus();
+}
+
+async function doResetPassword() {
+  const password = document.getElementById("reset-password").value;
+  const btn = document.getElementById("reset-btn");
+  btn.disabled = true;
+  btn.textContent = "Updating...";
+  try {
+    const { error } = await sb.auth.updateUser({ password });
+    if (error) {
+      showAuthError(error.message);
+      btn.disabled = false;
+      btn.textContent = "Update Password";
+      return;
+    }
+    const el = document.getElementById("auth-success");
+    if (el) {
+      el.textContent = "Password updated! Signing you in...";
+      el.style.display = "block";
+    }
+    // Auto-login after password reset
+    setTimeout(() => {
+      state.authView = "login";
+      init();
+    }, 1500);
+  } catch (e) {
+    showAuthError("Could not connect. Please try again.");
+    btn.disabled = false;
+    btn.textContent = "Update Password";
+  }
+}
+
 async function doLogout() {
   // Save before logout
   if (state.userId && state.user) {
@@ -2257,18 +2384,29 @@ async function doLogout() {
 // ======== INIT ========
 async function init() {
   initTheme();
+
+  // Detect password reset flow from Supabase redirect
+  const hashParams = new URLSearchParams(window.location.hash.substring(1));
+  if (hashParams.get("type") === "recovery") {
+    state.authView = "reset";
+    // Clear the hash
+    history.replaceState(null, "", window.location.pathname);
+    render();
+    return;
+  }
+
   // Check for existing Supabase session
   const { data: { session } } = await sb.auth.getSession();
   if (session && session.user) {
     const user = session.user;
     state.userId = user.id;
-    state.username = user.user_metadata.username || "user";
+    state.username = user.user_metadata.display_name || user.email.split("@")[0];
     // Load progress
     const { data: prog } = await sb.from("progress").select("data").eq("id", user.id).single();
     if (prog && prog.data && prog.data.name) {
       state.user = prog.data;
     } else {
-      state.user = createDefaultUser(user.user_metadata.display_name || state.username);
+      state.user = createDefaultUser(state.username);
     }
     enterApp();
   } else {
