@@ -1547,48 +1547,83 @@ function normalizeWord(w) {
 function compareWords(originalText, spokenText) {
   const origWords = originalText.replace(/[^a-zA-Z0-9'\s]/g, " ").split(/\s+/).filter(Boolean);
   const spokenWords = spokenText.replace(/[^a-zA-Z0-9'\s]/g, " ").split(/\s+/).filter(Boolean);
-  const spokenNorm = spokenWords.map(normalizeWord);
+  const origNorms = origWords.map(normalizeWord);
+  const spokenNorms = spokenWords.map(normalizeWord);
 
-  const results = [];
-  let spokenIdx = 0;
+  // --- Helpers ---
+  function wordMatch(a, b) {
+    // Returns "exact", "close", or false
+    if (a === b) return "exact";
+    if (a.length < 2 || b.length < 2) return false;
+    // Common speech recognition substitutions
+    var subs = { "the": "da", "a": "uh", "and": "an", "of": "ov", "to": "too", "was": "wuz", "is": "iz", "are": "r" };
+    if (subs[a] === b || subs[b] === a) return "exact";
+    // Be generous with Levenshtein for kids: allow ~40% edit distance, min 2
+    var maxDist = Math.max(2, Math.ceil(Math.max(a.length, b.length) * 0.4));
+    var dist = levenshtein(a, b);
+    if (dist <= 1) return "exact"; // 1 char off is basically correct for kids
+    if (dist <= maxDist) return "close";
+    // Check if one contains the other (speech recognition sometimes adds/drops endings)
+    if (a.length >= 3 && b.length >= 3) {
+      if (a.startsWith(b) || b.startsWith(a)) return "close";
+      if (a.endsWith(b) || b.endsWith(a)) return "close";
+    }
+    return false;
+  }
 
-  for (let i = 0; i < origWords.length; i++) {
-    const origNorm = normalizeWord(origWords[i]);
-    if (!origNorm) { results.push({ word: origWords[i], status: "skipped" }); continue; }
+  // --- Wider sliding-window alignment ---
+  // Instead of strict sequential, use a wider lookahead/lookback approach
+  var results = [];
+  var spokenUsed = new Array(spokenNorms.length).fill(false);
 
-    // Look ahead in spoken words for a match (allow up to 3 skipped words)
-    let found = false;
-    for (let look = spokenIdx; look < Math.min(spokenIdx + 4, spokenNorm.length); look++) {
-      if (spokenNorm[look] === origNorm) {
-        // Mark any skipped spoken words
-        spokenIdx = look + 1;
-        results.push({ word: origWords[i], status: "correct" });
-        found = true;
-        break;
-      }
-      // Check for close match (off by 1-2 chars = mispronounced)
-      if (spokenNorm[look].length > 2 && origNorm.length > 2) {
-        const dist = levenshtein(spokenNorm[look], origNorm);
-        if (dist <= Math.max(1, Math.floor(origNorm.length * 0.3))) {
-          spokenIdx = look + 1;
-          results.push({ word: origWords[i], status: "close", spoken: spokenWords[look] });
-          found = true;
-          break;
-        }
+  for (var i = 0; i < origWords.length; i++) {
+    var oNorm = origNorms[i];
+    if (!oNorm) { results.push({ word: origWords[i], status: "skipped" }); continue; }
+
+    // Search the entire spoken array for best match, preferring positions near expected location
+    var expectedPos = Math.round((i / Math.max(origWords.length, 1)) * spokenNorms.length);
+    var bestIdx = -1;
+    var bestType = false;
+    var bestDist = 999;
+
+    // Search within a generous window around expected position
+    var windowSize = Math.max(8, Math.ceil(spokenNorms.length * 0.35));
+    var searchStart = Math.max(0, expectedPos - windowSize);
+    var searchEnd = Math.min(spokenNorms.length, expectedPos + windowSize);
+
+    for (var j = searchStart; j < searchEnd; j++) {
+      if (spokenUsed[j]) continue;
+      var match = wordMatch(oNorm, spokenNorms[j]);
+      if (!match) continue;
+
+      var posDist = Math.abs(j - expectedPos);
+      if (match === "exact" && (bestType !== "exact" || posDist < bestDist)) {
+        bestIdx = j; bestType = "exact"; bestDist = posDist;
+      } else if (match === "close" && bestType !== "exact" && posDist < bestDist) {
+        bestIdx = j; bestType = "close"; bestDist = posDist;
       }
     }
-    if (!found) {
+
+    if (bestIdx >= 0) {
+      spokenUsed[bestIdx] = true;
+      if (bestType === "exact") {
+        results.push({ word: origWords[i], status: "correct" });
+      } else {
+        results.push({ word: origWords[i], status: "close", spoken: spokenWords[bestIdx] });
+      }
+    } else {
       results.push({ word: origWords[i], status: "missed" });
     }
   }
 
-  const correct = results.filter(r => r.status === "correct").length;
-  const close = results.filter(r => r.status === "close").length;
-  const missed = results.filter(r => r.status === "missed").length;
-  const total = results.filter(r => r.status !== "skipped").length;
-  const accuracy = total > 0 ? Math.round(((correct + close * 0.5) / total) * 100) : 0;
+  var correct = results.filter(function(r) { return r.status === "correct"; }).length;
+  var close = results.filter(function(r) { return r.status === "close"; }).length;
+  var missed = results.filter(function(r) { return r.status === "missed"; }).length;
+  var total = results.filter(function(r) { return r.status !== "skipped"; }).length;
+  // Give partial credit for close: 70% credit (more generous for kids)
+  var accuracy = total > 0 ? Math.round(((correct + close * 0.7) / total) * 100) : 0;
 
-  return { results, correct, close, missed, total, accuracy };
+  return { results: results, correct: correct, close: close, missed: missed, total: total, accuracy: accuracy };
 }
 
 // Simple Levenshtein distance
@@ -1671,7 +1706,7 @@ function renderVoiceWidget(pageText) {
       liveText = '<div class="voice-live-transcript voice-live-waiting">Listening... start reading!</div>';
     }
     return '<div class="voice-recording-active">' +
-      '<div class="voice-reading-header"><div class="voice-pulse"></div><p class="voice-recording-label">Read the text above out loud!</p></div>' +
+      '<div class="voice-reading-header"><div class="voice-pulse"></div>' + (!vr.timerOnly ? '<div class="voice-mic-pulse"><i data-lucide="mic" style="width:16px;height:16px"></i></div>' : '') + '<p class="voice-recording-label">Read the text above out loud!</p></div>' +
       '<div class="voice-reading-info"><div class="voice-timer" id="voiceTimer">0:00</div>' + liveText + '</div>' +
       '<button class="voice-btn stop" onclick="finishReadAloud()"><i data-lucide="check-circle" style="width:16px;height:16px"></i> I\x27m Done Reading!</button>' +
       '</div>';
@@ -1699,52 +1734,84 @@ function startReadAloud() {
   voiceTranscriptParts = [];
 
   // Try to get mic for recording
-  const micPromise = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
-    ? navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null)
+  var micPromise = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+    ? navigator.mediaDevices.getUserMedia({ audio: true }).catch(function() { return null; })
     : Promise.resolve(null);
 
-  micPromise.then(stream => {
+  micPromise.then(function(stream) {
     if (stream) {
       voiceMicStatus = "available";
-      // Start MediaRecorder for audio playback
+      // Start MediaRecorder for audio playback — prefer mp4 for Safari, fall back to webm
       try {
-        voiceMediaRecorder = new MediaRecorder(stream);
-        voiceMediaRecorder.ondataavailable = e => { if (e.data.size > 0) voiceAudioChunks.push(e.data); };
-        voiceMediaRecorder.start();
+        var mimeType = "audio/webm";
+        if (typeof MediaRecorder !== "undefined") {
+          if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported("audio/mp4")) {
+            mimeType = "audio/mp4";
+          } else if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+            mimeType = "audio/webm;codecs=opus";
+          }
+        }
+        voiceMediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+        voiceMediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) voiceAudioChunks.push(e.data); };
+        // Use timeslice to get data in chunks (more reliable than waiting for stop)
+        voiceMediaRecorder.start(1000);
       } catch(e) {
-        stream.getTracks().forEach(t => t.stop());
-        voiceMediaRecorder = null;
+        // Fallback: try without mimeType option
+        try {
+          voiceMediaRecorder = new MediaRecorder(stream);
+          voiceMediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) voiceAudioChunks.push(e.data); };
+          voiceMediaRecorder.start(1000);
+        } catch(e2) {
+          stream.getTracks().forEach(function(t) { t.stop(); });
+          voiceMediaRecorder = null;
+        }
       }
     } else {
       voiceMicStatus = "blocked";
     }
 
     // Start Speech Recognition
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRec) {
       voiceRecognition = new SpeechRec();
       voiceRecognition.continuous = true;
       voiceRecognition.interimResults = true;
       voiceRecognition.lang = "en-US";
-      voiceRecognition.maxAlternatives = 1;
+      voiceRecognition.maxAlternatives = 3; // More alternatives = better chance of matching
 
-      let finalTranscript = "";
+      var finalTranscript = "";
+      var allAlternatives = []; // Collect alternatives for better matching
+
       voiceRecognition.onresult = function(event) {
-        let interim = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
+        var interim = "";
+        for (var i = event.resultIndex; i < event.results.length; i++) {
           if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript + " ";
+            // Collect all alternatives for this final result
+            var bestAlt = event.results[i][0].transcript;
+            finalTranscript += bestAlt + " ";
+            for (var a = 0; a < event.results[i].length; a++) {
+              allAlternatives.push(event.results[i][a].transcript);
+            }
           } else {
             interim += event.results[i][0].transcript;
           }
         }
-        voiceTranscriptParts = [finalTranscript, interim];
+        voiceTranscriptParts = [finalTranscript, interim, allAlternatives.join(" ")];
         // Update live transcript display
         state.voiceRecording.liveTranscript = (finalTranscript + interim).trim() || "";
-        const liveEl = document.querySelector(".voice-live-transcript");
+        var liveEl = document.querySelector(".voice-live-transcript");
         if (liveEl) {
           liveEl.textContent = state.voiceRecording.liveTranscript || "Listening... start reading!";
           liveEl.classList.toggle("voice-live-waiting", !state.voiceRecording.liveTranscript);
+        }
+        // Pulse the mic indicator to show we're hearing something
+        var micPulse = document.querySelector(".voice-mic-pulse");
+        if (micPulse) {
+          micPulse.classList.add("voice-pulse-active");
+          clearTimeout(window._voicePulseTimer);
+          window._voicePulseTimer = setTimeout(function() {
+            if (micPulse) micPulse.classList.remove("voice-pulse-active");
+          }, 500);
         }
       };
 
@@ -1762,9 +1829,14 @@ function startReadAloud() {
       };
 
       voiceRecognition.onend = function() {
-        // Restart if still reading (recognition can timeout)
+        // Restart if still reading (recognition can timeout after ~5-10s of silence)
         if (state.voiceRecording && state.voiceRecording.isReading && voiceRecognition) {
-          try { voiceRecognition.start(); } catch(e) { /* ignore */ }
+          // Small delay before restart to avoid rapid-fire restarts
+          setTimeout(function() {
+            if (state.voiceRecording && state.voiceRecording.isReading && voiceRecognition) {
+              try { voiceRecognition.start(); } catch(e) { /* ignore */ }
+            }
+          }, 100);
         }
       };
 
@@ -1817,24 +1889,38 @@ function stopAllVoice() {
 function finishReadAloud() {
   if (voiceTimerInterval) { clearInterval(voiceTimerInterval); voiceTimerInterval = null; }
 
-  // Stop speech recognition
+  // Combine all transcript parts (final + interim + alternatives) for best matching
   var spokenText = voiceTranscriptParts.join(" ").trim();
   if (voiceRecognition) { try { voiceRecognition.stop(); } catch(e){ /* ignore */ } voiceRecognition = null; }
 
-  // Stop audio recording
-  var hadRecorder = voiceMediaRecorder && voiceMediaRecorder.state === "recording";
-  if (hadRecorder) {
-    voiceMediaRecorder.onstop = function() {
-      voiceMediaRecorder.stream.getTracks().forEach(function(t) { t.stop(); });
+  // Stop audio recording — handle all possible recorder states
+  var recorder = voiceMediaRecorder;
+  if (recorder && (recorder.state === "recording" || recorder.state === "paused")) {
+    recorder.onstop = function() {
+      try { recorder.stream.getTracks().forEach(function(t) { t.stop(); }); } catch(e) {}
       if (voiceAudioChunks.length > 0) {
-        var blob = new Blob(voiceAudioChunks, { type: "audio/webm" });
+        // Use the recorder's actual mimeType for the blob
+        var blobType = (recorder.mimeType && recorder.mimeType !== "") ? recorder.mimeType : "audio/webm";
+        var blob = new Blob(voiceAudioChunks, { type: blobType });
         voiceAudioURL = URL.createObjectURL(blob);
       }
       voiceMediaRecorder = null;
       completeReadAloud(spokenText);
     };
-    voiceMediaRecorder.stop();
+    try { recorder.stop(); } catch(e) {
+      voiceMediaRecorder = null;
+      completeReadAloud(spokenText);
+    }
   } else {
+    // Recorder already stopped or never started — still try to create audio from chunks
+    if (voiceAudioChunks.length > 0 && !voiceAudioURL) {
+      var blob = new Blob(voiceAudioChunks, { type: "audio/webm" });
+      voiceAudioURL = URL.createObjectURL(blob);
+    }
+    if (recorder) {
+      try { recorder.stream.getTracks().forEach(function(t) { t.stop(); }); } catch(e) {}
+    }
+    voiceMediaRecorder = null;
     completeReadAloud(spokenText);
   }
 }
