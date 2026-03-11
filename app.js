@@ -48,7 +48,15 @@ function createDefaultUser(name) {
     bestVoiceAccuracy: 0,
     voiceHistory: [],
     pet: null,  // { typeId, name, happiness, xp, feedings, accessory, adoptedAt }
-    petFeedingsTotal: 0
+    petFeedingsTotal: 0,
+    // Science Lab
+    science: {
+      elementsLearned: [],
+      compoundsDiscovered: [],
+      recipesDiscovered: [],
+      quizScores: {},
+      stateSorterPerfect: false
+    }
   };
 }
 
@@ -222,6 +230,8 @@ function checkBadges() {
       logActivity(`Earned badge: ${badge.name}`);
     }
   });
+  // Also check science badges
+  if (typeof checkScienceBadges === "function") checkScienceBadges();
 }
 
 // ======== TOAST ========
@@ -328,6 +338,55 @@ function render() {
       break;
     case "parent":
       renderParent(main);
+      break;
+    // Science Lab views
+    case "science":
+      initScienceProgress();
+      renderScienceHome(main);
+      break;
+    case "science-elements-beginner":
+      initScienceProgress();
+      renderElementStudy(main, "beginner");
+      break;
+    case "science-elements-intermediate":
+      initScienceProgress();
+      renderElementStudy(main, "intermediate");
+      break;
+    case "science-elements-advanced":
+      initScienceProgress();
+      renderElementStudy(main, "advanced");
+      break;
+    case "science-states":
+      initScienceProgress();
+      renderStatesOfMatter(main);
+      break;
+    case "science-compounds":
+      initScienceProgress();
+      renderCompoundBrowser(main);
+      break;
+    case "science-quiz-beginner":
+      initScienceProgress();
+      renderElementQuiz(main, "beginner");
+      break;
+    case "science-quiz-intermediate":
+      initScienceProgress();
+      renderElementQuiz(main, "intermediate");
+      break;
+    case "science-quiz-advanced":
+      initScienceProgress();
+      renderElementQuiz(main, "advanced");
+      break;
+    case "science-sorter":
+      initScienceProgress();
+      renderStateSorter(main);
+      break;
+    case "science-mixlab":
+      initScienceProgress();
+      renderMixLab(main);
+      break;
+    case "science-equation":
+      initScienceProgress();
+      renderEquationBuilder(main);
       break;
     default:
       renderLibrary(main);
@@ -552,6 +611,9 @@ function renderSidebar() {
     <nav class="sidebar-nav">
       <button class="nav-item ${state.currentView === "library" ? "active" : ""}" onclick="navigate('library')">
         <i data-lucide="library"></i> Story Library
+      </button>
+      <button class="nav-item ${state.currentView.startsWith("science") ? "active" : ""}" onclick="navigate('science')">
+        <i data-lucide="flask-conical"></i> Science Lab
       </button>
       <button class="nav-item ${state.currentView === "badges" ? "active" : ""}" onclick="navigate('badges')">
         <i data-lucide="award"></i> My Badges
@@ -1067,10 +1129,10 @@ function renderBadges(container) {
   container.innerHTML = `
     <div class="page-header">
       <h2>My Badges</h2>
-      <p>Earn badges by reading stories, learning words, and acing quizzes!</p>
+      <p>Earn badges by reading stories, exploring science, and acing quizzes!</p>
     </div>
     <div class="badges-grid">
-      ${BADGES.map(badge => {
+      ${[...BADGES, ...(typeof SCIENCE_BADGES !== "undefined" ? SCIENCE_BADGES : [])].map(badge => {
         const earned = state.user.badgesEarned.includes(badge.id);
         return `
           <div class="badge-card ${earned ? "earned" : "locked"}">
