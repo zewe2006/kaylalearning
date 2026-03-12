@@ -9,9 +9,11 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const state = {
   currentView: "library",
   authView: "login",  // "login" | "register" | "forgot" | "reset"
-  user: null,
+  user: null,         // alias -> state.kids[state.activeKidIndex]
+  kids: [],           // array of kid profiles
+  activeKidIndex: 0,
   userId: null,       // server-side user ID
-  username: null,     // for display
+  username: null,     // for display (parent email name)
   currentStory: null,
   currentPage: 0,
   fontSize: "medium",
@@ -65,11 +67,12 @@ function createDefaultUser(name) {
 // ======== PERSISTENCE (Supabase-backed) ========
 let _saveDebounce = null;
 function saveState() {
-  if (!state.userId || !state.user) return;
+  if (!state.userId || state.kids.length === 0) return;
   clearTimeout(_saveDebounce);
   _saveDebounce = setTimeout(() => {
+    const payload = { kids: state.kids, activeKidIndex: state.activeKidIndex };
     sb.from("progress")
-      .upsert({ id: state.userId, data: state.user, updated_at: new Date().toISOString() })
+      .upsert({ id: state.userId, data: payload, updated_at: new Date().toISOString() })
       .then(({ error }) => { if (error) console.warn("Auto-save failed:", error.message); });
   }, 800);
 }
@@ -326,6 +329,72 @@ function setBirthday(dateStr) {
   }
 }
 
+// ======== MULTI-KID HELPERS ========
+function migrateToMultiKid(rawData) {
+  // Already multi-kid format
+  if (rawData && rawData.kids && Array.isArray(rawData.kids)) {
+    return rawData;
+  }
+  // Old single-user format: wrap in kids array
+  if (rawData && rawData.name) {
+    return { kids: [rawData], activeKidIndex: 0 };
+  }
+  // No data at all
+  return { kids: [], activeKidIndex: 0 };
+}
+
+function loadKidsFromData(rawData) {
+  const migrated = migrateToMultiKid(rawData);
+  state.kids = migrated.kids;
+  state.activeKidIndex = migrated.activeKidIndex || 0;
+  // Ensure fields on each kid
+  state.kids.forEach(kid => {
+    if (!kid.theme) kid.theme = "pink";
+    if (kid.birthday === undefined) kid.birthday = null;
+    if (!kid.science) kid.science = { elementsLearned: [], compoundsDiscovered: [], recipesDiscovered: [], quizScores: {}, stateSorterPerfect: false };
+  });
+  if (state.kids.length > 0) {
+    state.user = state.kids[state.activeKidIndex];
+    applyTheme(state.user.theme);
+  } else {
+    state.user = null;
+  }
+}
+
+function switchKid(index) {
+  if (index < 0 || index >= state.kids.length) return;
+  state.activeKidIndex = index;
+  state.user = state.kids[index];
+  applyTheme(state.user.theme);
+  state.currentView = "library";
+  state.parentUnlocked = false;
+  saveState();
+  render();
+  showToast("\u{1F44B}", "Switched!", "Welcome, " + state.user.name + "!");
+}
+
+function addKid(name, birthday, theme) {
+  const kid = createDefaultUser(name);
+  kid.birthday = birthday || null;
+  kid.theme = theme || "pink";
+  state.kids.push(kid);
+  state.activeKidIndex = state.kids.length - 1;
+  state.user = state.kids[state.activeKidIndex];
+  applyTheme(state.user.theme);
+  saveState();
+}
+
+function removeKid(index) {
+  if (state.kids.length <= 1) return; // Must keep at least one
+  state.kids.splice(index, 1);
+  if (state.activeKidIndex >= state.kids.length) {
+    state.activeKidIndex = state.kids.length - 1;
+  }
+  state.user = state.kids[state.activeKidIndex];
+  applyTheme(state.user.theme);
+  saveState();
+}
+
 // ======== CONFETTI ========
 function showConfetti() {
   const container = document.createElement("div");
@@ -532,7 +601,7 @@ function renderRegister() {
       <h1>Create Your Account</h1>
       <p>Set up your reading profile to save your progress.</p>
       <div id="auth-error" class="auth-error" style="display:none"></div>
-      <input type="text" class="welcome-input" id="reg-display" placeholder="Your name (shown in app)" maxlength="30" autocomplete="off">
+      <input type="text" class="welcome-input" id="reg-display" placeholder="Child\u2019s name (shown in app)" maxlength="30" autocomplete="off">
       <input type="email" class="welcome-input" id="reg-email" placeholder="Parent\u2019s email address" maxlength="100" autocomplete="email" style="margin-top:var(--space-2)">
       <input type="password" class="welcome-input" id="reg-password" placeholder="Choose a password (6+ characters)" maxlength="50" autocomplete="new-password" style="margin-top:var(--space-2)">
       <input type="password" class="welcome-input" id="reg-password2" placeholder="Confirm password" maxlength="50" autocomplete="new-password" style="margin-top:var(--space-2)">
@@ -591,18 +660,20 @@ async function doLogin() {
     state.username = user.user_metadata.display_name || email.split("@")[0];
     // Load progress
     const { data: prog } = await sb.from("progress").select("data").eq("id", user.id).single();
-    if (prog && prog.data && prog.data.name) {
-      state.user = prog.data;
-      // Ensure fields exist for older accounts
-      if (!state.user.theme) state.user.theme = "pink";
-      if (state.user.birthday === undefined) state.user.birthday = null;
+    loadKidsFromData(prog ? prog.data : null);
+    if (state.kids.length === 0) {
+      // Brand new account — go to add-kid flow
+      state.currentView = "add-first-kid";
+      renderAddFirstKid();
+    } else if (state.kids.length === 1) {
+      // Single kid — go straight in
+      recordReadingDay();
+      saveState();
+      enterApp();
     } else {
-      state.user = createDefaultUser(state.username);
+      // Multiple kids — show picker
+      renderKidPicker();
     }
-    applyTheme(state.user.theme);
-    recordReadingDay();
-    saveState();
-    enterApp();
   } catch (e) {
     showAuthError("Could not connect. Please try again.");
     btn.disabled = false;
@@ -638,11 +709,9 @@ async function doRegister() {
     const user = data.user;
     state.userId = user.id;
     state.username = display_name;
-    state.user = createDefaultUser(display_name);
-    // Save birthday if provided during registration
+    // Create first kid profile
     const birthdayVal = document.getElementById("reg-birthday") ? document.getElementById("reg-birthday").value : "";
-    if (birthdayVal) state.user.birthday = birthdayVal;
-    applyTheme(state.user.theme);
+    addKid(display_name, birthdayVal, "pink");
     recordReadingDay();
     // Small delay to let trigger create the rows
     await new Promise(r => setTimeout(r, 500));
@@ -653,6 +722,170 @@ async function doRegister() {
     btn.disabled = false;
     btn.textContent = "Create Account";
   }
+}
+
+// ======== KID PICKER SCREEN ========
+function renderKidPicker() {
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="welcome-screen" style="max-width:600px">
+      <div style="font-size:3rem;margin-bottom:var(--space-3)">\u{1F46A}</div>
+      <h1 style="font-size:var(--text-xl);margin-bottom:var(--space-2)">Who's learning today?</h1>
+      <p style="color:var(--color-text-muted);margin-bottom:var(--space-6)">Pick your profile to continue.</p>
+      <div class="kid-picker-grid">
+        ${state.kids.map((kid, i) => {
+          const bgItem = AVATAR_ITEMS.backgrounds.find(b => b.id === kid.avatar.background);
+          const bgStyle = bgItem ? bgItem.color : "#a8d8a8";
+          return `
+            <button class="kid-picker-card" onclick="selectKid(${i})">
+              <div class="kid-picker-avatar" style="background:${bgStyle}">
+                ${kid.avatar.hat !== "none" ? '<span class="avatar-hat">' + (AVATAR_ITEMS.hats.find(h => h.id === kid.avatar.hat) || {}).emoji + '</span>' : ''}
+                <span>${kid.avatar.face}</span>
+              </div>
+              <div class="kid-picker-name">${kid.name}</div>
+              <div class="kid-picker-info">${kid.birthday ? getAgeGroupLabelForKid(kid).label : 'No birthday set'}</div>
+            </button>
+          `;
+        }).join("")}
+        <button class="kid-picker-card kid-picker-add" onclick="showAddKidForm()">
+          <div class="kid-picker-avatar" style="background:var(--color-surface-2);border:2px dashed var(--color-border)">
+            <span style="font-size:2rem;color:var(--color-text-muted)">+</span>
+          </div>
+          <div class="kid-picker-name" style="color:var(--color-text-muted)">Add Kid</div>
+        </button>
+      </div>
+      <button class="theme-toggle-btn" style="margin-top:var(--space-6)" onclick="doLogout()">
+        <i data-lucide="log-out" style="width:16px;height:16px"></i>
+        <span>Sign Out</span>
+      </button>
+    </div>
+    <div id="toast-container" class="toast-container"></div>
+  `;
+  lucide.createIcons();
+}
+
+function getAgeGroupLabelForKid(kid) {
+  if (!kid.birthday) return { label: "All Levels", desc: "Set birthday to personalize", emoji: "\u{2B50}" };
+  const bday = new Date(kid.birthday);
+  const today = new Date();
+  let age = today.getFullYear() - bday.getFullYear();
+  const monthDiff = today.getMonth() - bday.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < bday.getDate())) age--;
+  if (age <= 5)  return { label: "Early Reader (age " + age + ")", emoji: "\u{1F423}" };
+  if (age <= 7)  return { label: "Developing Reader (age " + age + ")", emoji: "\u{1F4D6}" };
+  if (age <= 9)  return { label: "Proficient Reader (age " + age + ")", emoji: "\u{1F4DA}" };
+  return { label: "Advanced Reader (age " + age + ")", emoji: "\u{1F680}" };
+}
+
+function selectKid(index) {
+  state.activeKidIndex = index;
+  state.user = state.kids[index];
+  applyTheme(state.user.theme);
+  recordReadingDay();
+  saveState();
+  enterApp();
+}
+
+// ======== ADD FIRST KID (new accounts) ========
+function renderAddFirstKid() {
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="welcome-screen">
+      <div style="font-size:3rem;margin-bottom:var(--space-3)">\u{1F389}</div>
+      <h1 style="font-size:var(--text-xl)">Welcome! Let's set up a profile.</h1>
+      <p style="color:var(--color-text-muted)">Create a profile for your child to get started.</p>
+      <div id="auth-error" class="auth-error" style="display:none"></div>
+      <input type="text" class="welcome-input" id="kid-name" placeholder="Child's name" maxlength="30" autocomplete="off">
+      <div style="margin-top:var(--space-3)">
+        <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-1)">Birthday (helps pick the right content level)</label>
+        <input type="date" class="welcome-input" id="kid-birthday" style="margin-top:0">
+      </div>
+      <div style="margin-top:var(--space-3)">
+        <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-2)">Color Theme</label>
+        <div class="theme-options">
+          <button class="theme-option selected" id="theme-pink" onclick="pickThemeOption('pink')">
+            <div class="theme-swatch"><span style="background:#e4637e"></span><span style="background:#f0906a"></span><span style="background:#fde8ed"></span></div>
+            <span class="theme-option-label">Pink & Coral</span>
+          </button>
+          <button class="theme-option" id="theme-blue" onclick="pickThemeOption('blue')">
+            <div class="theme-swatch"><span style="background:#3a8ec2"></span><span style="background:#2bb5a0"></span><span style="background:#e0f0fa"></span></div>
+            <span class="theme-option-label">Blue & Teal</span>
+          </button>
+        </div>
+      </div>
+      <br>
+      <button class="welcome-btn" id="add-kid-btn" disabled onclick="doAddKid()">Create Profile</button>
+    </div>
+    <div id="toast-container" class="toast-container"></div>
+  `;
+  const nameInput = document.getElementById("kid-name");
+  nameInput.addEventListener("input", () => {
+    document.getElementById("add-kid-btn").disabled = !nameInput.value.trim();
+  });
+  nameInput.focus();
+  window._selectedTheme = "pink";
+}
+
+function pickThemeOption(theme) {
+  window._selectedTheme = theme;
+  document.getElementById("theme-pink").classList.toggle("selected", theme === "pink");
+  document.getElementById("theme-blue").classList.toggle("selected", theme === "blue");
+}
+
+function doAddKid() {
+  const name = document.getElementById("kid-name").value.trim();
+  if (!name) return;
+  const birthday = document.getElementById("kid-birthday") ? document.getElementById("kid-birthday").value : "";
+  const theme = window._selectedTheme || "pink";
+  addKid(name, birthday, theme);
+  recordReadingDay();
+  saveState();
+  enterApp();
+}
+
+function showAddKidFromDashboard() {
+  // Same as showAddKidForm but returns to dashboard instead of picker
+  showAddKidForm(true);
+}
+
+// ======== ADD KID FORM (from picker / sidebar) ========
+function showAddKidForm(fromDashboard) {
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="welcome-screen">
+      <div style="font-size:3rem;margin-bottom:var(--space-3)">\u{2795}</div>
+      <h1 style="font-size:var(--text-xl)">Add a New Kid</h1>
+      <p style="color:var(--color-text-muted)">Create a new profile with their own progress and theme.</p>
+      <input type="text" class="welcome-input" id="kid-name" placeholder="Child's name" maxlength="30" autocomplete="off">
+      <div style="margin-top:var(--space-3)">
+        <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-1)">Birthday</label>
+        <input type="date" class="welcome-input" id="kid-birthday" style="margin-top:0">
+      </div>
+      <div style="margin-top:var(--space-3)">
+        <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-2)">Color Theme</label>
+        <div class="theme-options">
+          <button class="theme-option selected" id="theme-pink" onclick="pickThemeOption('pink')">
+            <div class="theme-swatch"><span style="background:#e4637e"></span><span style="background:#f0906a"></span><span style="background:#fde8ed"></span></div>
+            <span class="theme-option-label">Pink & Coral</span>
+          </button>
+          <button class="theme-option" id="theme-blue" onclick="pickThemeOption('blue')">
+            <div class="theme-swatch"><span style="background:#3a8ec2"></span><span style="background:#2bb5a0"></span><span style="background:#e0f0fa"></span></div>
+            <span class="theme-option-label">Blue & Teal</span>
+          </button>
+        </div>
+      </div>
+      <br>
+      <button class="welcome-btn" id="add-kid-btn" disabled onclick="doAddKid()">Create Profile</button>
+      <p class="auth-switch"><a href="#" id="back-to-picker" onclick="event.preventDefault(); ${fromDashboard ? 'enterApp(); navigate(\"parent\");' : 'renderKidPicker();'}">${fromDashboard ? 'Back to Dashboard' : 'Back to profiles'}</a></p>
+    </div>
+    <div id="toast-container" class="toast-container"></div>
+  `;
+  const nameInput = document.getElementById("kid-name");
+  nameInput.addEventListener("input", () => {
+    document.getElementById("add-kid-btn").disabled = !nameInput.value.trim();
+  });
+  nameInput.focus();
+  window._selectedTheme = "pink";
 }
 
 function enterApp() {
@@ -672,6 +905,34 @@ function enterApp() {
   `;
   lucide.createIcons();
   render();
+}
+
+function renderKidSwitcher() {
+  if (state.kids.length <= 1) return "";
+  let html = '<div class="kid-switcher">';
+  state.kids.forEach((kid, i) => {
+    const activeClass = i === state.activeKidIndex ? "active" : "";
+    html += '<button class="kid-switch-btn ' + activeClass + '" onclick="switchKid(' + i + ')" title="' + kid.name + '">';
+    html += '<span class="kid-switch-face">' + kid.avatar.face + '</span>';
+    html += '<span class="kid-switch-name">' + kid.name + '</span>';
+    html += '</button>';
+  });
+  html += '<button class="kid-switch-btn kid-switch-add" onclick="renderKidPicker()" title="Manage profiles">';
+  html += '<span class="kid-switch-face" style="font-size:0.9rem">\u2699\uFE0F</span>';
+  html += '</button>';
+  html += '</div>';
+  return html;
+}
+
+function renderParentKidTabs() {
+  if (state.kids.length <= 1) return "";
+  let html = '<div style="display:flex;gap:var(--space-2);margin-top:var(--space-3);flex-wrap:wrap">';
+  state.kids.forEach((kid, i) => {
+    const activeClass = i === state.activeKidIndex ? "active" : "";
+    html += '<button class="filter-chip ' + activeClass + '" onclick="switchKid(' + i + ')">' + kid.avatar.face + ' ' + kid.name + '</button>';
+  });
+  html += '</div>';
+  return html;
 }
 
 // ======== SIDEBAR RENDER ========
@@ -696,6 +957,7 @@ function renderSidebar() {
       </svg>
       <h1>Story Quest</h1>
     </div>
+    ${renderKidSwitcher()}
     <nav class="sidebar-nav">
       <button class="nav-item ${state.currentView === "library" ? "active" : ""}" onclick="navigate('library')">
         <i data-lucide="library"></i> Story Library
@@ -1453,7 +1715,15 @@ function renderParent(container) {
   container.innerHTML = `
     <div class="page-header">
       <h2>Parent Dashboard</h2>
-      <p>Track ${state.user.name}'s reading progress and achievements.</p>
+      <p>Track your children's reading progress and achievements.</p>
+      <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3)">
+        <button class="welcome-btn" style="padding:var(--space-2) var(--space-4);font-size:var(--text-sm);margin:0;width:auto" onclick="showAddKidFromDashboard()">
+          + Add Kid
+        </button>
+        ${state.kids.length > 1 ? '<button class="welcome-btn" style="padding:var(--space-2) var(--space-4);font-size:var(--text-sm);margin:0;width:auto;background:var(--color-surface-2);color:var(--color-text)" onclick="renderKidPicker()">Manage Profiles</button>' : ''}
+      </div>
+      ${renderParentKidTabs()}
+      <h3 style="margin-top:var(--space-4);font-family:var(--font-display)">${state.user.name}'s Stats</h3>
     </div>
 
     <div class="dashboard-stats">
@@ -2643,26 +2913,41 @@ function setUserTheme(themeName) {
   showToast("\u2728", "Theme Changed!", themeName === "blue" ? "Blue & Teal" : "Pink & Coral");
 }
 
-async function doLogout() {
-  // Save before logout
-  if (state.userId && state.user) {
-    await sb.from("progress")
-      .upsert({ id: state.userId, data: state.user, updated_at: new Date().toISOString() })
-      .catch(() => {});
+function doLogout() {
+  function clearAndRender() {
+    state.user = null;
+    state.kids = [];
+    state.activeKidIndex = 0;
+    state.userId = null;
+    state.username = null;
+    state.parentUnlocked = false;
+    state.currentView = "library";
+    state.authView = "login";
+    document.documentElement.removeAttribute("data-color-theme");
+    state.currentStory = null;
+    state.quizState = null;
+    state.voiceRecording = null;
+    state.petAnimation = null;
+    const app = document.getElementById("app");
+    if (app) app.innerHTML = "";
+    render();
   }
-  await sb.auth.signOut();
-  state.user = null;
-  state.userId = null;
-  state.username = null;
-  state.parentUnlocked = false;
-  state.currentView = "library";
-  state.authView = "login";
-  document.documentElement.removeAttribute("data-color-theme");
-  state.currentStory = null;
-  state.quizState = null;
-  state.voiceRecording = null;
-  state.petAnimation = null;
-  render();
+  // Save + sign out with a safety timeout so UI always clears
+  const saveAndSignOut = async () => {
+    try {
+      if (state.userId && state.kids.length > 0) {
+        const payload = { kids: state.kids, activeKidIndex: state.activeKidIndex };
+        await sb.from("progress")
+          .upsert({ id: state.userId, data: payload, updated_at: new Date().toISOString() })
+          .catch(() => {});
+      }
+      await sb.auth.signOut();
+    } catch(e) { console.warn("signOut error:", e); }
+    clearAndRender();
+  };
+  // Safety: if async takes >3s, force clear anyway
+  const safety = setTimeout(clearAndRender, 3000);
+  saveAndSignOut().finally(() => clearTimeout(safety));
 }
 
 // ======== INIT ========
@@ -2687,15 +2972,15 @@ async function init() {
     state.username = user.user_metadata.display_name || user.email.split("@")[0];
     // Load progress
     const { data: prog } = await sb.from("progress").select("data").eq("id", user.id).single();
-    if (prog && prog.data && prog.data.name) {
-      state.user = prog.data;
-      if (!state.user.theme) state.user.theme = "pink";
-      if (state.user.birthday === undefined) state.user.birthday = null;
+    loadKidsFromData(prog ? prog.data : null);
+    if (state.kids.length === 0) {
+      state.currentView = "add-first-kid";
+      renderAddFirstKid();
+    } else if (state.kids.length > 1) {
+      renderKidPicker();
     } else {
-      state.user = createDefaultUser(state.username);
+      enterApp();
     }
-    applyTheme(state.user.theme);
-    enterApp();
   } else {
     render();
   }

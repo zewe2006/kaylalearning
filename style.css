@@ -2678,3 +2678,118 @@
   background: var(--color-error-light);
   color: var(--color-error);
 }
+
+/* ============================================================
+   KID PICKER & SWITCHER
+   ============================================================ */
+.kid-picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: center;
+  margin: var(--space-4) 0;
+}
+.kid-picker-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg, 12px);
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 130px;
+  max-width: 160px;
+  font-family: inherit;
+  color: var(--color-text);
+}
+.kid-picker-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+.kid-picker-add {
+  border-style: dashed;
+  background: var(--color-surface-2);
+}
+.kid-picker-add:hover {
+  background: var(--color-surface);
+}
+.kid-picker-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  position: relative;
+}
+.kid-picker-avatar .avatar-hat {
+  position: absolute;
+  top: -8px;
+  font-size: 1.2rem;
+}
+.kid-picker-name {
+  font-weight: 700;
+  font-size: var(--text-base);
+  font-family: var(--font-display);
+}
+.kid-picker-info {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* Sidebar kid switcher */
+.kid-switcher {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.kid-switcher::-webkit-scrollbar { display: none; }
+.kid-switch-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md, 8px);
+  border: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  color: var(--color-text-muted);
+  min-width: 54px;
+}
+.kid-switch-btn:hover {
+  background: var(--color-surface-2);
+}
+.kid-switch-btn.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+.kid-switch-face {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+.kid-switch-name {
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50px;
+}
+.kid-switch-add {
+  opacity: 0.5;
+}
+.kid-switch-add:hover {
+  opacity: 1;
+}
