@@ -330,6 +330,57 @@ function setBirthday(dateStr) {
 }
 
 // ======== MULTI-KID HELPERS ========
+
+// ======== BIRTHDAY PICKER HELPER ========
+function renderBirthdayPicker(idPrefix, existingValue) {
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const currentYear = new Date().getFullYear();
+  const minYear = currentYear - 18;
+  const maxYear = currentYear - 2;
+  let selMonth = "", selDay = "", selYear = "";
+  if (existingValue) {
+    const parts = existingValue.split("-");
+    if (parts.length === 3) { selYear = parts[0]; selMonth = String(parseInt(parts[1])); selDay = String(parseInt(parts[2])); }
+  }
+  let html = '<div class="birthday-picker" style="display:flex;gap:var(--space-2);justify-content:center;flex-wrap:wrap">';
+  // Month
+  html += '<select class="welcome-input" id="' + idPrefix + '-month" style="width:auto;flex:1;min-width:100px;text-align:left;padding:var(--space-2) var(--space-3)" onchange="syncBirthdayPicker(\'' + idPrefix + '\')">';
+  html += '<option value="">Month</option>';
+  months.forEach((m, i) => { html += '<option value="' + (i+1) + '"' + (selMonth === String(i+1) ? ' selected' : '') + '>' + m + '</option>'; });
+  html += '</select>';
+  // Day
+  html += '<select class="welcome-input" id="' + idPrefix + '-day" style="width:auto;flex:0.6;min-width:70px;text-align:left;padding:var(--space-2) var(--space-3)" onchange="syncBirthdayPicker(\'' + idPrefix + '\')">';
+  html += '<option value="">Day</option>';
+  for (let d = 1; d <= 31; d++) { html += '<option value="' + d + '"' + (selDay === String(d) ? ' selected' : '') + '>' + d + '</option>'; }
+  html += '</select>';
+  // Year
+  html += '<select class="welcome-input" id="' + idPrefix + '-year" style="width:auto;flex:0.7;min-width:80px;text-align:left;padding:var(--space-2) var(--space-3)" onchange="syncBirthdayPicker(\'' + idPrefix + '\')">';
+  html += '<option value="">Year</option>';
+  for (let y = maxYear; y >= minYear; y--) { html += '<option value="' + y + '"' + (selYear === String(y) ? ' selected' : '') + '>' + y + '</option>'; }
+  html += '</select>';
+  html += '</div>';
+  // Hidden input for the combined value
+  html += '<input type="hidden" id="' + idPrefix + '">';
+  return html;
+}
+
+function syncBirthdayPicker(idPrefix) {
+  const m = document.getElementById(idPrefix + "-month");
+  const d = document.getElementById(idPrefix + "-day");
+  const y = document.getElementById(idPrefix + "-year");
+  const hidden = document.getElementById(idPrefix);
+  if (!m || !d || !y || !hidden) return;
+  if (m.value && d.value && y.value) {
+    hidden.value = y.value + "-" + String(m.value).padStart(2,"0") + "-" + String(d.value).padStart(2,"0");
+  } else {
+    hidden.value = "";
+  }
+  // If this is the profile birthday, update it live
+  if (idPrefix === "profile-birthday" && typeof setBirthday === "function") {
+    setBirthday(hidden.value);
+  }
+}
+
 function migrateToMultiKid(rawData) {
   // Already multi-kid format
   if (rawData && rawData.kids && Array.isArray(rawData.kids)) {
@@ -606,8 +657,8 @@ function renderRegister() {
       <input type="password" class="welcome-input" id="reg-password" placeholder="Choose a password (6+ characters)" maxlength="50" autocomplete="new-password" style="margin-top:var(--space-2)">
       <input type="password" class="welcome-input" id="reg-password2" placeholder="Confirm password" maxlength="50" autocomplete="new-password" style="margin-top:var(--space-2)">
       <div style="margin-top:var(--space-3)">
-        <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-1)">Child's birthday (helps us pick the right content level)</label>
-        <input type="date" class="welcome-input" id="reg-birthday" style="margin-top:0">
+        <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-2)">Child's birthday (helps us pick the right content level)</label>
+        ${renderBirthdayPicker("reg-birthday", "")}
       </div>
       <br>
       <button class="welcome-btn" id="reg-btn" disabled>Create Account</button>
@@ -797,8 +848,8 @@ function renderAddFirstKid() {
       <div id="auth-error" class="auth-error" style="display:none"></div>
       <input type="text" class="welcome-input" id="kid-name" placeholder="Child's name" maxlength="30" autocomplete="off">
       <div style="margin-top:var(--space-3)">
-        <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-1)">Birthday (helps pick the right content level)</label>
-        <input type="date" class="welcome-input" id="kid-birthday" style="margin-top:0">
+        <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-2)">Birthday (helps pick the right content level)</label>
+        ${renderBirthdayPicker("kid-birthday", "")}
       </div>
       <div style="margin-top:var(--space-3)">
         <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-2)">Color Theme</label>
@@ -858,8 +909,8 @@ function showAddKidForm(fromDashboard) {
       <p style="color:var(--color-text-muted)">Create a new profile with their own progress and theme.</p>
       <input type="text" class="welcome-input" id="kid-name" placeholder="Child's name" maxlength="30" autocomplete="off">
       <div style="margin-top:var(--space-3)">
-        <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-1)">Birthday</label>
-        <input type="date" class="welcome-input" id="kid-birthday" style="margin-top:0">
+        <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-2)">Birthday</label>
+        ${renderBirthdayPicker("kid-birthday", "")}
       </div>
       <div style="margin-top:var(--space-3)">
         <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-2)">Color Theme</label>
@@ -1621,7 +1672,7 @@ function renderProfile(container) {
       <h3>Birthday</h3>
       <p>Your birthday helps us pick the right content level for you.</p>
       <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap">
-        <input type="date" class="welcome-input" id="profile-birthday" value="${state.user.birthday || ''}" style="max-width:220px;margin:0" onchange="setBirthday(this.value)">
+        ${renderBirthdayPicker("profile-birthday", state.user.birthday || "")}
         ${state.user.birthday ? `<div style="display:flex;align-items:center;gap:var(--space-2)"><span style="font-size:1.5rem">${getAgeGroupLabel().emoji}</span><div><div style="font-weight:600;font-size:var(--text-sm)">${getAgeGroupLabel().label}</div><div style="font-size:var(--text-xs);color:var(--color-text-muted)">Age ${getUserAge() || "?"} \u00B7 ${formatBirthday(state.user.birthday)}</div></div></div>` : '<span style="font-size:var(--text-sm);color:var(--color-text-faint)">Not set yet</span>'}
       </div>
     </div>
