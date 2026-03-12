@@ -2941,7 +2941,7 @@ function doLogout() {
           .upsert({ id: state.userId, data: payload, updated_at: new Date().toISOString() })
           .catch(() => {});
       }
-      await sb.auth.signOut();
+      await sb.auth.signOut({ scope: 'local' });
     } catch(e) { console.warn("signOut error:", e); }
     clearAndRender();
   };
