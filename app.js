@@ -43,6 +43,8 @@ function createDefaultUser(name) {
     quizScores: {},
     totalMinutesRead: 0,
     purchasedItems: ["none", "default"],
+    theme: "pink",
+    birthday: null,  // ISO date string e.g. "2018-05-15"
     // Phase 2
     recordingsCount: 0,
     bestVoiceAccuracy: 0,
@@ -253,12 +255,86 @@ function showToast(icon, title, message) {
   }, 3000);
 }
 
+// ======== AGE & BIRTHDAY UTILITIES ========
+function getUserAge() {
+  if (!state.user || !state.user.birthday) return null;
+  const bday = new Date(state.user.birthday);
+  const today = new Date();
+  let age = today.getFullYear() - bday.getFullYear();
+  const monthDiff = today.getMonth() - bday.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < bday.getDate())) age--;
+  return age;
+}
+
+function getAgeGroup() {
+  const age = getUserAge();
+  if (age === null) return "all"; // No birthday set, show everything
+  if (age <= 5)  return "early";        // Pre-K/K: Level 1 stories, beginner science
+  if (age <= 7)  return "developing";   // 1st-2nd grade: Level 1-2 stories, beginner science
+  if (age <= 9)  return "proficient";   // 3rd-4th grade: Level 1-3 stories, beginner+intermediate science
+  return "advanced";                     // 10+: All stories, all science tiers
+}
+
+function getStoryLevelsForAge() {
+  const group = getAgeGroup();
+  switch (group) {
+    case "early":      return [1];
+    case "developing": return [1, 2];
+    case "proficient": return [1, 2, 3];
+    case "advanced":   return [1, 2, 3, 4, 5];
+    default:           return [1, 2, 3, 4, 5];
+  }
+}
+
+function getScienceTiersForAge() {
+  const group = getAgeGroup();
+  switch (group) {
+    case "early":      return ["beginner"];
+    case "developing": return ["beginner"];
+    case "proficient": return ["beginner", "intermediate"];
+    case "advanced":   return ["beginner", "intermediate", "advanced"];
+    default:           return ["beginner", "intermediate", "advanced"];
+  }
+}
+
+function getAgeGroupLabel() {
+  const group = getAgeGroup();
+  const age = getUserAge();
+  switch (group) {
+    case "early":      return { label: "Early Reader", desc: "Ages 4-5", emoji: "\u{1F423}" };
+    case "developing": return { label: "Developing Reader", desc: "Ages 6-7", emoji: "\u{1F4D6}" };
+    case "proficient": return { label: "Proficient Reader", desc: "Ages 8-9", emoji: "\u{1F4DA}" };
+    case "advanced":   return { label: "Advanced Reader", desc: "Ages 10+", emoji: "\u{1F680}" };
+    default:           return { label: "All Levels", desc: "Set birthday to personalize", emoji: "\u{2B50}" };
+  }
+}
+
+function formatBirthday(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
+function setBirthday(dateStr) {
+  if (!state.user) return;
+  state.user.birthday = dateStr || null;
+  saveState();
+  render();
+  if (dateStr) {
+    const info = getAgeGroupLabel();
+    showToast(info.emoji, "Birthday Saved!", "Content level: " + info.label);
+  }
+}
+
 // ======== CONFETTI ========
 function showConfetti() {
   const container = document.createElement("div");
   container.className = "confetti-container";
   document.body.appendChild(container);
-  const colors = ["#e4637e", "#f0906a", "#f5a882", "#5bb87a", "#f8bb9a", "#fde8ed"];
+  const theme = (state.user && state.user.theme) || "pink";
+  const colors = theme === "blue"
+    ? ["#3a8ec2", "#2bb5a0", "#5aade0", "#42d4be", "#72bde8", "#e0f0fa"]
+    : ["#e4637e", "#f0906a", "#f5a882", "#5bb87a", "#f8bb9a", "#fde8ed"];
   for (let i = 0; i < 60; i++) {
     const piece = document.createElement("div");
     piece.className = "confetti-piece";
@@ -460,6 +536,10 @@ function renderRegister() {
       <input type="email" class="welcome-input" id="reg-email" placeholder="Parent\u2019s email address" maxlength="100" autocomplete="email" style="margin-top:var(--space-2)">
       <input type="password" class="welcome-input" id="reg-password" placeholder="Choose a password (6+ characters)" maxlength="50" autocomplete="new-password" style="margin-top:var(--space-2)">
       <input type="password" class="welcome-input" id="reg-password2" placeholder="Confirm password" maxlength="50" autocomplete="new-password" style="margin-top:var(--space-2)">
+      <div style="margin-top:var(--space-3)">
+        <label style="font-size:var(--text-sm);color:var(--color-text-muted);display:block;margin-bottom:var(--space-1)">Child's birthday (helps us pick the right content level)</label>
+        <input type="date" class="welcome-input" id="reg-birthday" style="margin-top:0">
+      </div>
       <br>
       <button class="welcome-btn" id="reg-btn" disabled>Create Account</button>
       <p class="auth-switch">Already have an account? <a href="#" id="go-login">Sign in</a></p>
@@ -513,9 +593,13 @@ async function doLogin() {
     const { data: prog } = await sb.from("progress").select("data").eq("id", user.id).single();
     if (prog && prog.data && prog.data.name) {
       state.user = prog.data;
+      // Ensure fields exist for older accounts
+      if (!state.user.theme) state.user.theme = "pink";
+      if (state.user.birthday === undefined) state.user.birthday = null;
     } else {
       state.user = createDefaultUser(state.username);
     }
+    applyTheme(state.user.theme);
     recordReadingDay();
     saveState();
     enterApp();
@@ -555,6 +639,10 @@ async function doRegister() {
     state.userId = user.id;
     state.username = display_name;
     state.user = createDefaultUser(display_name);
+    // Save birthday if provided during registration
+    const birthdayVal = document.getElementById("reg-birthday") ? document.getElementById("reg-birthday").value : "";
+    if (birthdayVal) state.user.birthday = birthdayVal;
+    applyTheme(state.user.theme);
     recordReadingDay();
     // Small delay to let trigger create the rows
     await new Promise(r => setTimeout(r, 500));
@@ -650,10 +738,12 @@ function renderSidebar() {
 // ======== LIBRARY ========
 function renderLibrary(container) {
   const topics = [...new Set(STORIES.map(s => s.topic))];
-  const levels = [1, 2, 3];
+  const allowedLevels = getStoryLevelsForAge();
+  const levels = [...new Set(STORIES.map(s => s.level))].filter(l => allowedLevels.includes(l)).sort((a,b) => a-b);
   const recommended = getRecommendedStory();
+  const ageInfo = getAgeGroupLabel();
 
-  let filtered = STORIES;
+  let filtered = STORIES.filter(s => allowedLevels.includes(s.level));
   if (state.filterLevel !== "all") {
     filtered = filtered.filter(s => s.level === parseInt(state.filterLevel));
   }
@@ -665,6 +755,7 @@ function renderLibrary(container) {
     <div class="page-header">
       <h2>Story Library</h2>
       <p>Choose a story to read. Tap on a story card to begin!</p>
+      ${getUserAge() !== null ? '<div style="display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-1) var(--space-3);background:var(--color-primary-light);border-radius:20px;font-size:var(--text-sm);color:var(--color-primary);font-weight:600;margin-top:var(--space-2)">' + ageInfo.emoji + " " + ageInfo.label + " \u00B7 Levels " + allowedLevels.join(", ") + '</div>' : ''}
     </div>
     <div class="filter-bar">
       <button class="filter-chip ${state.filterLevel === "all" && state.filterTopic === "all" ? "active" : ""}" onclick="setFilter('all','all')">All</button>
@@ -1262,6 +1353,36 @@ function renderProfile(container) {
             }).join("")}
           </div>
         </div>
+      </div>
+    </div>
+    <div class="theme-picker-section">
+      <h3>Birthday</h3>
+      <p>Your birthday helps us pick the right content level for you.</p>
+      <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap">
+        <input type="date" class="welcome-input" id="profile-birthday" value="${state.user.birthday || ''}" style="max-width:220px;margin:0" onchange="setBirthday(this.value)">
+        ${state.user.birthday ? `<div style="display:flex;align-items:center;gap:var(--space-2)"><span style="font-size:1.5rem">${getAgeGroupLabel().emoji}</span><div><div style="font-weight:600;font-size:var(--text-sm)">${getAgeGroupLabel().label}</div><div style="font-size:var(--text-xs);color:var(--color-text-muted)">Age ${getUserAge() || "?"} \u00B7 ${formatBirthday(state.user.birthday)}</div></div></div>` : '<span style="font-size:var(--text-sm);color:var(--color-text-faint)">Not set yet</span>'}
+      </div>
+    </div>
+    <div class="theme-picker-section">
+      <h3>Color Theme</h3>
+      <p>Choose a color theme for your learning experience!</p>
+      <div class="theme-options">
+        <button class="theme-option ${(state.user.theme || 'pink') === 'pink' ? 'selected' : ''}" onclick="setUserTheme('pink')">
+          <div class="theme-swatch">
+            <span style="background:#e4637e"></span>
+            <span style="background:#f0906a"></span>
+            <span style="background:#fde8ed"></span>
+          </div>
+          <span class="theme-option-label">Pink & Coral</span>
+        </button>
+        <button class="theme-option ${(state.user.theme || 'pink') === 'blue' ? 'selected' : ''}" onclick="setUserTheme('blue')">
+          <div class="theme-swatch">
+            <span style="background:#3a8ec2"></span>
+            <span style="background:#2bb5a0"></span>
+            <span style="background:#e0f0fa"></span>
+          </div>
+          <span class="theme-option-label">Blue & Teal</span>
+        </button>
       </div>
     </div>
     <footer class="app-footer">
@@ -2508,6 +2629,20 @@ async function doResetPassword() {
   }
 }
 
+// ======== THEME SYSTEM ========
+function applyTheme(themeName) {
+  if (themeName === "blue") { document.documentElement.setAttribute("data-color-theme", "blue"); } else { document.documentElement.removeAttribute("data-color-theme"); }
+}
+
+function setUserTheme(themeName) {
+  if (!state.user) return;
+  state.user.theme = themeName;
+  applyTheme(themeName);
+  saveState();
+  render();
+  showToast("\u2728", "Theme Changed!", themeName === "blue" ? "Blue & Teal" : "Pink & Coral");
+}
+
 async function doLogout() {
   // Save before logout
   if (state.userId && state.user) {
@@ -2522,6 +2657,7 @@ async function doLogout() {
   state.parentUnlocked = false;
   state.currentView = "library";
   state.authView = "login";
+  document.documentElement.removeAttribute("data-color-theme");
   state.currentStory = null;
   state.quizState = null;
   state.voiceRecording = null;
@@ -2553,9 +2689,12 @@ async function init() {
     const { data: prog } = await sb.from("progress").select("data").eq("id", user.id).single();
     if (prog && prog.data && prog.data.name) {
       state.user = prog.data;
+      if (!state.user.theme) state.user.theme = "pink";
+      if (state.user.birthday === undefined) state.user.birthday = null;
     } else {
       state.user = createDefaultUser(state.username);
     }
+    applyTheme(state.user.theme);
     enterApp();
   } else {
     render();

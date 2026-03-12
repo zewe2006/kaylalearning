@@ -111,6 +111,18 @@ function renderScienceHome(container) {
     return "#FF7043";
   }
 
+  // Age-based filtering
+  const allowedTiers = (typeof getScienceTiersForAge === "function") ? getScienceTiersForAge() : ["beginner", "intermediate", "advanced"];
+  const tierMap = { "Beginner": "beginner", "Intermediate": "intermediate", "Advanced": "advanced" };
+  const filteredLessonCards = lessonCards.filter(c => {
+    const t = c.tier || tierMap[c.level] || "beginner";
+    return allowedTiers.includes(t);
+  });
+  const filteredGameCards = gameCards.filter(c => {
+    const t = c.tier || tierMap[c.level] || "beginner";
+    return allowedTiers.includes(t);
+  });
+
   function renderCards(cards) {
     return cards.map(c => `
       <div class="sci-card" onclick="scienceNav('${c.view}')" style="cursor:pointer">
@@ -135,12 +147,12 @@ function renderScienceHome(container) {
 
     <div class="sci-section">
       <h3 class="sci-section-title">📚 Lessons</h3>
-      <div class="sci-grid">${renderCards(lessonCards)}</div>
+      <div class="sci-grid">${renderCards(filteredLessonCards)}</div>
     </div>
 
     <div class="sci-section">
       <h3 class="sci-section-title">🎮 Games</h3>
-      <div class="sci-grid">${renderCards(gameCards)}</div>
+      <div class="sci-grid">${renderCards(filteredGameCards)}</div>
     </div>
   `;
   lucide.createIcons();
