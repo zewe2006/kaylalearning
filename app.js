@@ -975,12 +975,21 @@ function renderKidSwitcher() {
   return html;
 }
 
+function switchKidInDashboard(index) {
+  if (index < 0 || index >= state.kids.length) return;
+  state.activeKidIndex = index;
+  state.user = state.kids[index];
+  applyTheme(state.user.theme);
+  saveState();
+  render();
+}
+
 function renderParentKidTabs() {
   if (state.kids.length <= 1) return "";
   let html = '<div style="display:flex;gap:var(--space-2);margin-top:var(--space-3);flex-wrap:wrap">';
   state.kids.forEach((kid, i) => {
     const activeClass = i === state.activeKidIndex ? "active" : "";
-    html += '<button class="filter-chip ' + activeClass + '" onclick="switchKid(' + i + ')">' + kid.avatar.face + ' ' + kid.name + '</button>';
+    html += '<button class="filter-chip ' + activeClass + '" onclick="switchKidInDashboard(' + i + ')">' + kid.avatar.face + ' ' + kid.name + '</button>';
   });
   html += '</div>';
   return html;
