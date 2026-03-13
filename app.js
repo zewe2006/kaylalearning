@@ -76,15 +76,23 @@ function createDefaultUser(name) {
 
 // ======== PERSISTENCE (Supabase-backed) ========
 let _saveDebounce = null;
+function _doSave() {
+  if (!state.userId || state.kids.length === 0) return;
+  const payload = { kids: state.kids, activeKidIndex: state.activeKidIndex };
+  sb.from("progress")
+    .upsert({ id: state.userId, data: payload, updated_at: new Date().toISOString() })
+    .then(({ error }) => { if (error) console.warn("Auto-save failed:", error.message); });
+}
 function saveState() {
   if (!state.userId || state.kids.length === 0) return;
   clearTimeout(_saveDebounce);
-  _saveDebounce = setTimeout(() => {
-    const payload = { kids: state.kids, activeKidIndex: state.activeKidIndex };
-    sb.from("progress")
-      .upsert({ id: state.userId, data: payload, updated_at: new Date().toISOString() })
-      .then(({ error }) => { if (error) console.warn("Auto-save failed:", error.message); });
-  }, 800);
+  _saveDebounce = setTimeout(_doSave, 800);
+}
+// Flush immediately — use before kid switch or important milestones
+function saveStateNow() {
+  if (!state.userId || state.kids.length === 0) return;
+  clearTimeout(_saveDebounce);
+  _doSave();
 }
 
 // ======== HELPERS ========
@@ -436,6 +444,7 @@ function loadKidsFromData(rawData) {
 
 function switchKid(index) {
   if (index < 0 || index >= state.kids.length) return;
+  saveStateNow(); // flush any pending saves before switching
   state.activeKidIndex = index;
   state.user = state.kids[index];
   applyTheme(state.user.theme);
@@ -1012,6 +1021,7 @@ function renderKidSwitcher() {
 
 function switchKidInDashboard(index) {
   if (index < 0 || index >= state.kids.length) return;
+  saveStateNow(); // flush any pending saves before switching
   state.activeKidIndex = index;
   state.user = state.kids[index];
   applyTheme(state.user.theme);

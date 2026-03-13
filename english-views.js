@@ -575,7 +575,7 @@ function renderEnglishResults(container) {
     awardXP(stars * 15, "Challenge completion bonus");
 
     checkEnglishBadges();
-    saveState();
+    if (typeof saveStateNow === 'function') saveStateNow(); else saveState();
   }
 
   var challengeNames = { vocab: "Vocabulary Quest", spelling: "Spelling Spell", grammar: "Grammar Guardian" };
