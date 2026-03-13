@@ -1476,21 +1476,18 @@ function renderQuizResults(container, story, qs) {
   const pct = Math.round((score / total) * 100);
   const perfect = score === total;
 
-  // Record quiz score
-  state.user.quizScores[story.id] = { score, total, perfect, pct };
-
-  // Mark story completed
-  state.user.storyProgress[story.id].status = "completed";
-  logActivity(`Completed "${story.title}" with quiz score ${score}/${total}`);
-
-  // Check for new badges after completing the story
-  checkBadges();
-  saveState();
-  renderSidebar();
-
-  // Award bonus for perfect
-  if (perfect) {
-    setTimeout(() => showConfetti(), 300);
+  // Only process results once (prevent duplicate rewards on re-render)
+  if (!qs.resultsProcessed) {
+    qs.resultsProcessed = true;
+    state.user.quizScores[story.id] = { score, total, perfect, pct };
+    state.user.storyProgress[story.id].status = "completed";
+    logActivity(`Completed "${story.title}" with quiz score ${score}/${total}`);
+    checkBadges();
+    saveState();
+    renderSidebar();
+    if (perfect) {
+      setTimeout(() => showConfetti(), 300);
+    }
   }
 
   let circleClass, message;

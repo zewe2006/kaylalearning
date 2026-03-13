@@ -464,8 +464,7 @@ function answerScienceQuiz(idx) {
 
 function nextScienceQuizQuestion() {
   const qs = state.scienceQuizState;
-  if (!qs) return;
-  if (qs.finished) return; // Already finished — prevent double rewards
+  if (!qs || qs.finished) return;
   qs.current++;
   qs.answered = false;
   qs.selectedAnswer = null;
@@ -479,9 +478,11 @@ function nextScienceQuizQuestion() {
       s.quizScores[qs.tier] = qs.score;
     }
     const xp = Math.max(5, qs.score * 3);
-    awardXP(xp, `Element Explorer (${qs.tier}) — ${qs.score}/10`);
+    awardXP(xp, `Element Explorer (${qs.tier}) \u2014 ${qs.score}/10`);
     checkScienceBadges();
     saveState();
+    renderElementQuiz(document.getElementById("main-content"), qs.tier);
+    return; // Don't render twice
   }
   renderElementQuiz(document.getElementById("main-content"), qs.tier);
 }
@@ -612,8 +613,7 @@ function answerStateSorter(answer) {
 
 function nextSorterItem() {
   const gs = state.scienceSorterState;
-  if (!gs) return;
-  if (gs.finished) return; // Already finished — prevent double rewards
+  if (!gs || gs.finished) return;
   gs.current++;
   gs.answered = false;
   gs.lastCorrect = null;
@@ -626,9 +626,11 @@ function nextSorterItem() {
       s.stateSorterPerfect = true;
     }
     const xp = Math.max(5, gs.score * 2);
-    awardXP(xp, `State Sorter — ${gs.score}/10`);
+    awardXP(xp, `State Sorter \u2014 ${gs.score}/10`);
     checkScienceBadges();
     saveState();
+    renderStateSorter(document.getElementById("main-content"));
+    return;
   }
   renderStateSorter(document.getElementById("main-content"));
 }
