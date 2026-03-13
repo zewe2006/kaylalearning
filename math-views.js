@@ -319,9 +319,9 @@ function renderMathGame(container) {
   if (mathState.answered) {
     var wasCorrect = mathState.answers[idx] === q.correct;
     if (wasCorrect) {
-      html += '<div class="math-feedback correct-feedback">\u{2705} Correct! Great job!</div>';
-      // Auto-advance after delay for correct answers
-      html += '<script>setTimeout(function(){mathNextQuestion()},1200)</script>';
+      html += '<div class="math-feedback correct-feedback">\u{2705} Correct! Great job!';
+      html += '<br><button class="got-it-btn" onclick="mathNextQuestion()">Next</button>';
+      html += '</div>';
     } else {
       html += '<div class="math-feedback wrong-feedback">';
       html += '\u{274C} Not quite. The answer is <strong>' + q.options[q.correct] + '</strong>.';
