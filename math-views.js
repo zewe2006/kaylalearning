@@ -65,12 +65,15 @@ function getMathStars(score, total) {
 
 function checkMathBadges() {
   if (typeof MATH_BADGES === "undefined" || !state.user) return;
-  MATH_BADGES.forEach(function(badge) {
-    if (badge.condition(state.user) && !state.user.earnedBadges.includes(badge.id)) {
-      state.user.earnedBadges.push(badge.id);
-      showToast(badge.icon + " Badge earned: " + badge.name + "!");
-    }
-  });
+  if (!state.user.badgesEarned) state.user.badgesEarned = [];
+  try {
+    MATH_BADGES.forEach(function(badge) {
+      if (badge.condition(state.user) && !state.user.badgesEarned.includes(badge.id)) {
+        state.user.badgesEarned.push(badge.id);
+        showToast(badge.icon, "Badge Earned!", badge.name);
+      }
+    });
+  } catch(e) { console.warn('checkMathBadges error:', e); }
 }
 
 // ======== HOME VIEW ========
@@ -226,11 +229,11 @@ function renderMathLessonComplete(container) {
   if (!alreadyDone) {
     m.completedIds[lesson.id] = true;
     m.lessonsCompleted = (m.lessonsCompleted || 0) + 1;
-    awardXP(15);
+    awardXP(15, "Math lesson: " + lesson.title);
     state.user.activityLog.unshift({ text: "Completed Math Galaxy lesson: " + lesson.title, time: new Date().toLocaleString() });
-    checkMathBadges();
     if (typeof saveStateNow === "function") saveStateNow();
     else saveState();
+    checkMathBadges();
   }
 
   var html = '<div class="math-lesson-complete">';
@@ -396,13 +399,13 @@ function renderMathResults(container) {
     m.totalStars = (m.totalStars || 0) + stars;
 
     var xp = stars === 3 ? 30 : stars === 2 ? 20 : stars === 1 ? 10 : 5;
-    awardXP(xp);
+    awardXP(xp, "Math game: " + game.title);
 
     state.user.activityLog.unshift({ text: "Completed " + game.title + ": " + score + "/" + total + " (" + pct + "%)", time: new Date().toLocaleString() });
 
-    checkMathBadges();
     if (typeof saveStateNow === "function") saveStateNow();
     else saveState();
+    checkMathBadges();
   }
 
   var emoji = pct === 100 ? "\u{1F31F}" : pct >= 75 ? "\u{1F680}" : pct >= 50 ? "\u{2B50}" : "\u{1F30D}";
