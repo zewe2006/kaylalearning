@@ -70,6 +70,15 @@ function createDefaultUser(name) {
       grammarCompleted: 0,
       perfectScores: 0,
       totalStars: 0
+    },
+    // Math Galaxy
+    math: {
+      lessonsCompleted: 0,
+      gamesCompleted: 0,
+      perfectGames: 0,
+      totalStars: 0,
+      gameScores: {},
+      completedIds: {}
     }
   };
 }
@@ -255,6 +264,7 @@ function checkBadges() {
   });
   // Also check science badges
   if (typeof checkScienceBadges === "function") checkScienceBadges();
+  if (typeof checkMathBadges === "function") checkMathBadges();
   // Also check English badges
   if (typeof checkEnglishBadges === "function") checkEnglishBadges();
 }
@@ -433,6 +443,7 @@ function loadKidsFromData(rawData) {
     if (kid.pet === undefined) kid.pet = null;
     if (!kid.science) kid.science = { elementsLearned: [], compoundsDiscovered: [], recipesDiscovered: [], quizScores: {}, stateSorterPerfect: false };
     if (!kid.english) kid.english = { challengeScores: {}, totalChallengesCompleted: 0, vocabCompleted: 0, spellingCompleted: 0, grammarCompleted: 0, perfectScores: 0, totalStars: 0 };
+    if (!kid.math) kid.math = { lessonsCompleted: 0, gamesCompleted: 0, perfectGames: 0, totalStars: 0, gameScores: {}, completedIds: {} };
   });
   if (state.kids.length > 0) {
     state.user = state.kids[state.activeKidIndex];
@@ -627,6 +638,19 @@ function render() {
     case "english-challenge":
       initEnglishProgress();
       renderEnglishChallenge(main);
+      break;
+    // Math Galaxy views
+    case "math":
+      initMathProgress();
+      renderMathHome(main);
+      break;
+    case "math-lesson":
+      initMathProgress();
+      renderMathLesson(main);
+      break;
+    case "math-game":
+      initMathProgress();
+      renderMathGame(main);
       break;
     default:
       renderLibrary(main);
@@ -1072,6 +1096,9 @@ function renderSidebar() {
       </button>
       <button class="nav-item ${state.currentView.startsWith("english") ? "active" : ""}" onclick="navigate('english')">
         <i data-lucide="book-open"></i> Word Adventure
+      </button>
+      <button class="nav-item ${state.currentView.startsWith("math") ? "active" : ""}" onclick="navigate('math')">
+        <i data-lucide="calculator"></i> Math Galaxy
       </button>
       <button class="nav-item ${state.currentView === "badges" ? "active" : ""}" onclick="navigate('badges')">
         <i data-lucide="award"></i> My Badges
@@ -1588,10 +1615,10 @@ function renderBadges(container) {
   container.innerHTML = `
     <div class="page-header">
       <h2>My Badges</h2>
-      <p>Earn badges by reading stories, exploring science, conquering Word Adventure, and acing quizzes!</p>
+      <p>Earn badges by reading stories, exploring science, conquering Word Adventure, mastering Math Galaxy, and acing quizzes!</p>
     </div>
     <div class="badges-grid">
-      ${[...BADGES, ...(typeof SCIENCE_BADGES !== "undefined" ? SCIENCE_BADGES : []), ...(typeof ENGLISH_BADGES !== "undefined" ? ENGLISH_BADGES : [])].map(badge => {
+      ${[...BADGES, ...(typeof SCIENCE_BADGES !== "undefined" ? SCIENCE_BADGES : []), ...(typeof ENGLISH_BADGES !== "undefined" ? ENGLISH_BADGES : []), ...(typeof MATH_BADGES !== "undefined" ? MATH_BADGES : [])].map(badge => {
         const earned = state.user.badgesEarned.includes(badge.id);
         return `
           <div class="badge-card ${earned ? "earned" : "locked"}">
@@ -1824,7 +1851,7 @@ function renderParent(container) {
   container.innerHTML = `
     <div class="page-header">
       <h2>Parent Dashboard</h2>
-      <p>Track your children's reading, science, and Word Adventure progress.</p>
+      <p>Track your children's reading, science, Word Adventure, and Math Galaxy progress.</p>
       <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3)">
         <button class="welcome-btn" style="padding:var(--space-2) var(--space-4);font-size:var(--text-sm);margin:0;width:auto" onclick="showAddKidFromDashboard()">
           + Add Kid
@@ -1930,6 +1957,43 @@ function renderParent(container) {
           '<div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value">' + totalStars + '</div><div class="stat-label">Stars Earned</div></div>' +
           '<div class="stat-card"><div class="stat-icon">✅</div><div class="stat-value">' + e.totalChallengesCompleted + '</div><div class="stat-label">Challenges Done</div></div>' +
           '<div class="stat-card"><div class="stat-icon">🌟</div><div class="stat-value">' + (e.perfectScores || 0) + '</div><div class="stat-label">Perfect Scores</div></div>' +
+        '</div>' +
+        (rows ? '<div style="display:flex;flex-direction:column;gap:var(--space-3)">' + rows + '</div>' : '');
+      })()}
+    </div>
+
+    <div class="dashboard-section">
+      <h3>🚀 Math Galaxy</h3>
+      ${(function() {
+        if (typeof initMathProgress !== 'function') return '<div class="empty-state"><p>Math Galaxy not available.</p></div>';
+        initMathProgress();
+        var m = state.user.math;
+        if ((m.lessonsCompleted || 0) === 0 && (m.gamesCompleted || 0) === 0) return '<div class="empty-state"><p>No Math Galaxy activity yet.</p></div>';
+        var rows = '';
+        if (typeof MATH_GAMES !== 'undefined') {
+          ['beginner','intermediate','advanced'].forEach(function(tier) {
+            var tierLabel = tier === 'beginner' ? 'Beginner' : tier === 'intermediate' ? 'Intermediate' : 'Advanced';
+            if (MATH_GAMES[tier]) {
+              MATH_GAMES[tier].forEach(function(g) {
+                var sc = m.gameScores[g.id];
+                if (sc) {
+                  var pct = Math.round((sc.score / sc.total) * 100);
+                  var color = pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-accent)' : 'var(--color-error)';
+                  rows += '<div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--color-surface-2);border-radius:var(--radius-md)">';
+                  rows += '<span>' + g.icon + '</span>';
+                  rows += '<span style="flex:1;font-size:var(--text-sm);font-weight:600">' + g.title + ' (' + tierLabel + ')</span>';
+                  rows += '<span style="font-size:var(--text-sm);font-weight:700;color:' + color + '">' + sc.score + '/' + sc.total + ' (' + pct + '%)</span>';
+                  rows += '</div>';
+                }
+              });
+            }
+          });
+        }
+        return '<div class="dashboard-stats" style="margin-bottom:var(--space-4)">' +
+          '<div class="stat-card"><div class="stat-icon">📚</div><div class="stat-value">' + (m.lessonsCompleted || 0) + '</div><div class="stat-label">Lessons Done</div></div>' +
+          '<div class="stat-card"><div class="stat-icon">🎮</div><div class="stat-value">' + (m.gamesCompleted || 0) + '</div><div class="stat-label">Games Done</div></div>' +
+          '<div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value">' + (m.totalStars || 0) + '</div><div class="stat-label">Stars Earned</div></div>' +
+          '<div class="stat-card"><div class="stat-icon">🌟</div><div class="stat-value">' + (m.perfectGames || 0) + '</div><div class="stat-label">Perfect Games</div></div>' +
         '</div>' +
         (rows ? '<div style="display:flex;flex-direction:column;gap:var(--space-3)">' + rows + '</div>' : '');
       })()}
