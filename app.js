@@ -1588,10 +1588,10 @@ function renderBadges(container) {
   container.innerHTML = `
     <div class="page-header">
       <h2>My Badges</h2>
-      <p>Earn badges by reading stories, exploring science, and acing quizzes!</p>
+      <p>Earn badges by reading stories, exploring science, conquering Word Adventure, and acing quizzes!</p>
     </div>
     <div class="badges-grid">
-      ${[...BADGES, ...(typeof SCIENCE_BADGES !== "undefined" ? SCIENCE_BADGES : [])].map(badge => {
+      ${[...BADGES, ...(typeof SCIENCE_BADGES !== "undefined" ? SCIENCE_BADGES : []), ...(typeof ENGLISH_BADGES !== "undefined" ? ENGLISH_BADGES : [])].map(badge => {
         const earned = state.user.badgesEarned.includes(badge.id);
         return `
           <div class="badge-card ${earned ? "earned" : "locked"}">
@@ -1824,7 +1824,7 @@ function renderParent(container) {
   container.innerHTML = `
     <div class="page-header">
       <h2>Parent Dashboard</h2>
-      <p>Track your children's reading progress and achievements.</p>
+      <p>Track your children's reading, science, and Word Adventure progress.</p>
       <div style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-3)">
         <button class="welcome-btn" style="padding:var(--space-2) var(--space-4);font-size:var(--text-sm);margin:0;width:auto" onclick="showAddKidFromDashboard()">
           + Add Kid
@@ -1897,6 +1897,42 @@ function renderParent(container) {
           }).join("")}
         </div>
       ` : '<div class="empty-state"><p>No quizzes completed yet.</p></div>'}
+    </div>
+
+    <div class="dashboard-section">
+      <h3>✨ Word Adventure</h3>
+      ${(function() {
+        if (typeof initEnglishProgress !== 'function') return '<div class="empty-state"><p>Word Adventure not available.</p></div>';
+        initEnglishProgress();
+        var e = state.user.english;
+        var totalStars = typeof getTotalStars === 'function' ? getTotalStars() : (e.totalStars || 0);
+        if (e.totalChallengesCompleted === 0) return '<div class="empty-state"><p>No Word Adventure challenges completed yet.</p></div>';
+        var rows = '';
+        if (typeof ENGLISH_WORLDS !== 'undefined') {
+          ENGLISH_WORLDS.forEach(function(w) {
+            ['vocab', 'spelling', 'grammar'].forEach(function(type) {
+              var key = w.id + '-' + type;
+              var sc = e.challengeScores[key];
+              if (sc) {
+                var pct = Math.round((sc.score / sc.total) * 100);
+                var typeLabel = type === 'vocab' ? 'Vocabulary' : type === 'spelling' ? 'Spelling' : 'Grammar';
+                var color = pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-accent)' : 'var(--color-error)';
+                rows += '<div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--color-surface-2);border-radius:var(--radius-md)">';
+                rows += '<span>' + w.icon + '</span>';
+                rows += '<span style="flex:1;font-size:var(--text-sm);font-weight:600">' + w.name + ' - ' + typeLabel + '</span>';
+                rows += '<span style="font-size:var(--text-sm);font-weight:700;color:' + color + '">' + sc.score + '/' + sc.total + ' (' + pct + '%)</span>';
+                rows += '</div>';
+              }
+            });
+          });
+        }
+        return '<div class="dashboard-stats" style="margin-bottom:var(--space-4)">' +
+          '<div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value">' + totalStars + '</div><div class="stat-label">Stars Earned</div></div>' +
+          '<div class="stat-card"><div class="stat-icon">✅</div><div class="stat-value">' + e.totalChallengesCompleted + '</div><div class="stat-label">Challenges Done</div></div>' +
+          '<div class="stat-card"><div class="stat-icon">🌟</div><div class="stat-value">' + (e.perfectScores || 0) + '</div><div class="stat-label">Perfect Scores</div></div>' +
+        '</div>' +
+        (rows ? '<div style="display:flex;flex-direction:column;gap:var(--space-3)">' + rows + '</div>' : '');
+      })()}
     </div>
 
     <div class="dashboard-section">
