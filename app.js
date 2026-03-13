@@ -60,6 +60,16 @@ function createDefaultUser(name) {
       recipesDiscovered: [],
       quizScores: {},
       stateSorterPerfect: false
+    },
+    // Word Adventure
+    english: {
+      challengeScores: {},
+      totalChallengesCompleted: 0,
+      vocabCompleted: 0,
+      spellingCompleted: 0,
+      grammarCompleted: 0,
+      perfectScores: 0,
+      totalStars: 0
     }
   };
 }
@@ -237,6 +247,8 @@ function checkBadges() {
   });
   // Also check science badges
   if (typeof checkScienceBadges === "function") checkScienceBadges();
+  // Also check English badges
+  if (typeof checkEnglishBadges === "function") checkEnglishBadges();
 }
 
 // ======== TOAST ========
@@ -412,6 +424,7 @@ function loadKidsFromData(rawData) {
     if (!kid.purchasedItems) kid.purchasedItems = ["none", "default"];
     if (kid.pet === undefined) kid.pet = null;
     if (!kid.science) kid.science = { elementsLearned: [], compoundsDiscovered: [], recipesDiscovered: [], quizScores: {}, stateSorterPerfect: false };
+    if (!kid.english) kid.english = { challengeScores: {}, totalChallengesCompleted: 0, vocabCompleted: 0, spellingCompleted: 0, grammarCompleted: 0, perfectScores: 0, totalStars: 0 };
   });
   if (state.kids.length > 0) {
     state.user = state.kids[state.activeKidIndex];
@@ -592,6 +605,19 @@ function render() {
     case "science-equation":
       initScienceProgress();
       renderEquationBuilder(main);
+      break;
+    // Word Adventure views
+    case "english":
+      initEnglishProgress();
+      renderEnglishHome(main);
+      break;
+    case "english-world":
+      initEnglishProgress();
+      renderEnglishWorld(main);
+      break;
+    case "english-challenge":
+      initEnglishProgress();
+      renderEnglishChallenge(main);
       break;
     default:
       renderLibrary(main);
@@ -1033,6 +1059,9 @@ function renderSidebar() {
       </button>
       <button class="nav-item ${state.currentView.startsWith("science") ? "active" : ""}" onclick="navigate('science')">
         <i data-lucide="flask-conical"></i> Science Lab
+      </button>
+      <button class="nav-item ${state.currentView.startsWith("english") ? "active" : ""}" onclick="navigate('english')">
+        <i data-lucide="book-open"></i> Word Adventure
       </button>
       <button class="nav-item ${state.currentView === "badges" ? "active" : ""}" onclick="navigate('badges')">
         <i data-lucide="award"></i> My Badges
