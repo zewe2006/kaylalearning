@@ -1715,6 +1715,7 @@ function renderProfile(container) {
 
 function setAvatarFace(face) {
   state.user.avatar.face = face;
+  saveState();
   render();
 }
 
@@ -1726,6 +1727,7 @@ function buyAvatarItem(category, itemId, cost) {
       case "backgrounds": state.user.avatar.background = itemId; break;
       case "companions": state.user.avatar.companion = itemId; break;
     }
+    saveState();
     render();
     return;
   }
@@ -1742,6 +1744,7 @@ function buyAvatarItem(category, itemId, cost) {
     const item = AVATAR_ITEMS[category].find(i => i.id === itemId);
     showToast("🎁", "Item Purchased!", item ? item.name : itemId);
     logActivity(`Purchased: ${item ? item.name : itemId}`);
+    saveState();
     render();
   }
 }
@@ -2737,6 +2740,7 @@ function adoptPet(typeId) {
   showToast("🐾", "Pet Adopted!", `Welcome ${petName} to the family!`);
   logActivity(`Adopted a pet: ${petName} the ${petType.name}`);
   checkBadges();
+  saveState();
   render();
 }
 
@@ -2790,6 +2794,7 @@ function feedPet(foodId) {
   }
 
   checkBadges();
+  saveState();
   renderSidebar();
   render();
 }
@@ -2799,6 +2804,7 @@ function buyPetAccessory(itemId, cost) {
   const key = 'pet-' + itemId;
   if (state.user.purchasedItems.includes(key) || cost === 0) {
     state.user.pet.accessory = itemId;
+    saveState();
     render();
     return;
   }
@@ -2809,6 +2815,7 @@ function buyPetAccessory(itemId, cost) {
     const item = PET_ACCESSORIES.find(a => a.id === itemId);
     showToast("🎁", "Accessory Purchased!", item ? item.name : itemId);
     logActivity(`Purchased pet accessory: ${item ? item.name : itemId}`);
+    saveState();
     renderSidebar();
     render();
   }
