@@ -2635,13 +2635,15 @@ function renderPet(container) {
           <p class="pet-section-desc">Feeding your pet increases happiness and helps it grow!</p>
           <div class="pet-food-grid">
             ${PET_FOODS.map(food => {
-              const canAfford = state.user.xp >= food.cost || food.cost === 0;
+              const freeUsed = food.cost === 0 ? getFreeFeedingsToday() : 0;
+              const freeMaxed = food.cost === 0 && freeUsed >= 5;
+              const canAfford = (state.user.xp >= food.cost || food.cost === 0) && !freeMaxed;
               return `
                 <button class="pet-food-btn ${!canAfford ? 'locked' : ''}" onclick="feedPet('${food.id}')" ${!canAfford ? 'disabled' : ''}>
                   <span class="pet-food-emoji">${food.emoji}</span>
                   <span class="pet-food-name">${food.name}</span>
                   <span class="pet-food-info">+${food.happiness} happiness</span>
-                  ${food.cost > 0 ? `<span class="pet-food-cost">⭐${food.cost}</span>` : '<span class="pet-food-cost free">Free</span>'}
+                  ${food.cost > 0 ? `<span class="pet-food-cost">${food.cost} XP</span>` : `<span class="pet-food-cost free">${freeMaxed ? 'Done for today' : 'Free (' + (5 - freeUsed) + ' left)'}</span>`}
                 </button>
               `;
             }).join('')}
@@ -2738,11 +2740,30 @@ function adoptPet(typeId) {
   render();
 }
 
+function getFreeFeedingsToday() {
+  const today = new Date().toISOString().slice(0, 10);
+  if (!state.user.freeAppleDate || state.user.freeAppleDate !== today) {
+    state.user.freeAppleDate = today;
+    state.user.freeAppleCount = 0;
+  }
+  return state.user.freeAppleCount || 0;
+}
+
 function feedPet(foodId) {
   if (!state.user.pet) return;
   const food = PET_FOODS.find(f => f.id === foodId);
   if (!food) return;
   if (food.cost > 0 && state.user.xp < food.cost) return;
+
+  // Free apple daily limit: 5 per day
+  if (food.cost === 0) {
+    const used = getFreeFeedingsToday();
+    if (used >= 5) {
+      showToast("\u{1F34E}", "Daily Limit", "You've used all 5 free apples today! Come back tomorrow.");
+      return;
+    }
+    state.user.freeAppleCount = used + 1;
+  }
 
   if (food.cost > 0) {
     state.user.xp -= food.cost;

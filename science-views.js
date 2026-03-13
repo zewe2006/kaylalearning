@@ -465,6 +465,7 @@ function answerScienceQuiz(idx) {
 function nextScienceQuizQuestion() {
   const qs = state.scienceQuizState;
   if (!qs) return;
+  if (qs.finished) return; // Already finished — prevent double rewards
   qs.current++;
   qs.answered = false;
   qs.selectedAnswer = null;
@@ -612,6 +613,7 @@ function answerStateSorter(answer) {
 function nextSorterItem() {
   const gs = state.scienceSorterState;
   if (!gs) return;
+  if (gs.finished) return; // Already finished — prevent double rewards
   gs.current++;
   gs.answered = false;
   gs.lastCorrect = null;
