@@ -402,6 +402,15 @@ function loadKidsFromData(rawData) {
   state.kids.forEach(kid => {
     if (!kid.theme) kid.theme = "pink";
     if (kid.birthday === undefined) kid.birthday = null;
+    if (!kid.avatar) kid.avatar = { hat: "none", background: "default", companion: "none", face: "\u{1F60A}" };
+    if (!kid.storyProgress) kid.storyProgress = {};
+    if (!kid.wordsLearned) kid.wordsLearned = [];
+    if (!kid.badgesEarned) kid.badgesEarned = [];
+    if (!kid.readingDays) kid.readingDays = [];
+    if (!kid.activityLog) kid.activityLog = [];
+    if (!kid.quizScores) kid.quizScores = {};
+    if (!kid.purchasedItems) kid.purchasedItems = ["none", "default"];
+    if (kid.pet === undefined) kid.pet = null;
     if (!kid.science) kid.science = { elementsLearned: [], compoundsDiscovered: [], recipesDiscovered: [], quizScores: {}, stateSorterPerfect: false };
   });
   if (state.kids.length > 0) {
@@ -1156,6 +1165,7 @@ function openStory(storyId) {
 
   state.readingStartTime = Date.now();
   recordReadingDay();
+  saveState();
   state.currentView = "reading";
   render();
 }
@@ -1304,7 +1314,7 @@ function nextPage() {
     state.user.storyProgress[state.currentStory.id].lastPage = state.currentPage;
     if (typeof stopAllVoice === "function") stopAllVoice();
     state.voiceRecording = null;
-    awardXP(5, "Read a page");
+    awardXP(5, "Read a page"); // awardXP calls saveState
     closeVocab();
     render();
     window.scrollTo(0, 0);
@@ -1330,7 +1340,7 @@ function finishStory() {
   state.user.storyProgress[story.id].readTime = readTime;
   state.user.totalMinutesRead += Math.round(readTime / 60);
 
-  awardXP(20, `Finished reading: ${story.title}`);
+  awardXP(20, `Finished reading: ${story.title}`); // awardXP calls saveState
 
   // Start quiz
   state.quizState = {
@@ -2164,8 +2174,9 @@ function renderVoiceWidget(pageText) {
   // ---- RESULTS VIEW ----
   if (vr && vr.done) {
     const acc = vr.accuracy;
-    const accClass = acc >= 90 ? "great" : acc >= 70 ? "good" : "needs-work";
-    const accLabel = acc >= 90 ? "Amazing!" : acc >= 70 ? "Great Job!" : acc >= 50 ? "Good Effort!" : "Keep Practicing!";
+    const isTimerOnly = acc === null;
+    const accClass = isTimerOnly ? "good" : (acc >= 90 ? "great" : acc >= 70 ? "good" : "needs-work");
+    const accLabel = isTimerOnly ? "Reading Complete!" : (acc >= 90 ? "Amazing!" : acc >= 70 ? "Great Job!" : acc >= 50 ? "Good Effort!" : "Keep Practicing!");
 
     // Build word-by-word display (missed/close words are tappable to hear pronunciation)
     const wordHTML = (vr.wordResults || []).map(r => {
@@ -2198,10 +2209,13 @@ function renderVoiceWidget(pageText) {
     }).join("") + '</div></div>' : "";
 
     // Stats row
-    const statsHTML = vr.wpm ? '<div class="voice-stats-row"><div class="voice-stat-item"><div class="voice-stat-val">' + vr.wpm + '</div><div class="voice-stat-lbl">words/min</div></div><div class="voice-stat-item"><div class="voice-stat-val">' + vr.timeStr + '</div><div class="voice-stat-lbl">time</div></div><div class="voice-stat-item"><div class="voice-stat-val">' + (vr.correct || 0) + "/" + (vr.total || 0) + '</div><div class="voice-stat-lbl">words right</div></div></div>' : "";
+    const wordsRightStat = isTimerOnly ? '<div class="voice-stat-item"><div class="voice-stat-val">' + (vr.total || 0) + '</div><div class="voice-stat-lbl">words read</div></div>' : '<div class="voice-stat-item"><div class="voice-stat-val">' + (vr.correct || 0) + '/' + (vr.total || 0) + '</div><div class="voice-stat-lbl">words right</div></div>';
+    const statsHTML = vr.wpm ? '<div class="voice-stats-row"><div class="voice-stat-item"><div class="voice-stat-val">' + vr.wpm + '</div><div class="voice-stat-lbl">words/min</div></div><div class="voice-stat-item"><div class="voice-stat-val">' + vr.timeStr + '</div><div class="voice-stat-lbl">time</div></div>' + wordsRightStat + '</div>' : "";
+
+    const scoreBadgeText = isTimerOnly ? accLabel : (acc + '% \u2014 ' + accLabel);
 
     return '<div class="voice-results">' +
-      '<div class="voice-results-header"><span class="voice-score-badge ' + accClass + '">' + acc + '% — ' + accLabel + '</span><button class="voice-close-btn" onclick="closeVoiceResults()">&times;</button></div>' +
+      '<div class="voice-results-header"><span class="voice-score-badge ' + accClass + '">' + scoreBadgeText + '</span><button class="voice-close-btn" onclick="closeVoiceResults()">&times;</button></div>' +
       '<div class="voice-feedback">' + vr.feedback + '</div>' +
       statsHTML +
       audioHTML +
@@ -2475,16 +2489,16 @@ function completeReadAloud(spokenText) {
       feedback = "Keep at it! Try reading more slowly and carefully. You'll get better!";
     }
   } else {
-    // Timer-only fallback — give speed-based feedback
-    accuracy = wpm >= 60 ? 85 : wpm >= 30 ? 70 : 50;
+    // Timer-only fallback — no voice recognition available
+    accuracy = null; // Don't show fake accuracy
     if (wpm >= 100) {
-      feedback = "Wow, that was fast! You must know these words well!";
+      feedback = "Wow, that was fast! You read " + wordCount + " words in " + timeStr + "!";
     } else if (wpm >= 60) {
-      feedback = "Great reading speed! You're becoming a confident reader!";
+      feedback = "Great reading speed! " + wordCount + " words in " + timeStr + " — nice pace!";
     } else if (wpm >= 30) {
-      feedback = "Nice and steady! Taking your time helps you understand better.";
+      feedback = "Nice and steady! You read " + wordCount + " words in " + timeStr + ". Taking your time helps you understand better.";
     } else {
-      feedback = "Good job finishing! Try a little faster next time. You can do it!";
+      feedback = "Good job finishing! You read " + wordCount + " words in " + timeStr + ". Try a little faster next time!";
     }
   }
 
@@ -2515,8 +2529,9 @@ function completeReadAloud(spokenText) {
     wpm: wpm,
     date: new Date().toLocaleString()
   });
-  awardXP(15, "Read aloud: " + accuracy + "% accuracy");
-  logActivity('Read aloud page ' + (state.currentPage + 1) + ' of "' + state.currentStory.title + '" \u2014 ' + accuracy + '% accuracy');
+  var xpMsg = accuracy !== null ? ("Read aloud: " + accuracy + "% accuracy") : ("Read aloud: " + wpm + " words/min");
+  awardXP(15, xpMsg);
+  logActivity('Read aloud page ' + (state.currentPage + 1) + ' of "' + state.currentStory.title + '"' + (accuracy !== null ? ' \u2014 ' + accuracy + '% accuracy' : ' \u2014 ' + wpm + ' wpm'));
   checkBadges();
   render();
 }
