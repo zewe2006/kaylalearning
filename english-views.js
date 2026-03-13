@@ -480,6 +480,7 @@ function engShowFeedback(isCorrect, grammarQ, callback) {
     inner += '<p class="eng-feedback-rule">\uD83D\uDCA1 ' + grammarQ.rule + '</p>';
     if (!isCorrect) {
       inner += '<p>The answer was: <strong>' + grammarQ.options[grammarQ.correct] + '</strong></p>';
+      inner += '<button class="eng-feedback-gotit">Got it!</button>';
     } else {
       inner += '<p>+10 XP</p>';
     }
@@ -492,7 +493,6 @@ function engShowFeedback(isCorrect, grammarQ, callback) {
   document.body.appendChild(overlay);
 
   var dismissed = false;
-  var delay = grammarQ ? 2500 : 1200;
 
   function dismiss() {
     if (dismissed) return;
@@ -501,8 +501,16 @@ function engShowFeedback(isCorrect, grammarQ, callback) {
     callback();
   }
 
-  overlay.addEventListener('click', dismiss);
-  setTimeout(dismiss, delay);
+  // Wrong grammar answers: only dismiss on button tap (no auto-dismiss)
+  // Everything else: auto-dismiss after a short delay, or tap to dismiss early
+  if (grammarQ && !isCorrect) {
+    var gotItBtn = overlay.querySelector('.eng-feedback-gotit');
+    if (gotItBtn) gotItBtn.addEventListener('click', function(e) { e.stopPropagation(); dismiss(); });
+  } else {
+    var delay = grammarQ ? 2000 : 1200;
+    overlay.addEventListener('click', dismiss);
+    setTimeout(dismiss, delay);
+  }
 }
 
 function engShowSpellingFeedback(isCorrect, correctWord, callback) {

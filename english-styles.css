@@ -272,6 +272,20 @@
 
 .eng-feedback-overlay.correct .eng-feedback-card { border: 3px solid #4CAF50; }
 .eng-feedback-overlay.wrong .eng-feedback-card { border: 3px solid #F44336; }
+.eng-feedback-gotit {
+  display: inline-block;
+  margin-top: 0.75rem;
+  padding: 0.5rem 1.5rem;
+  background: var(--color-primary, #e4637e);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.eng-feedback-gotit:hover { opacity: 0.85; }
 
 /* Results Screen */
 .eng-results-screen { padding: 1rem; max-width: 500px; margin: 0 auto; }
