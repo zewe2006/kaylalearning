@@ -1,1 +1,1 @@
-CONTENT_FROM_FILE:tool_calls/github_mcp_direct/app_for_push.js
+@file:tool_calls/github_mcp_direct/app_mmpwc4g0.js
