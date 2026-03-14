@@ -1,1 +1,1 @@
-@file:tool_calls/github_mcp_direct/app_mmpwc4g0.js
+tool_calls/github_mcp_direct/app_mmpwc4g0.js
