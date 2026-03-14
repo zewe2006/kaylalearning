@@ -1,1 +1,89 @@
-CONTENT_PLACEHOLDER_STYLE_CSS
+/* Art direction: Children's reading game → warm, cheerful, playful yet clean
+   Palette: Pink & Coral primary, peach accent — bright, feminine, and encouraging
+   Typography: Nunito (body, rounded and friendly) + Baloo 2 (display, fun and warm)
+   Density: spacious — large touch targets, generous whitespace for young readers */
+
+/* ========== DESIGN TOKENS ========== */
+:root {
+  /* Type Scale */
+  --text-xs:   clamp(0.75rem,  0.7rem  + 0.25vw, 0.875rem);
+  --text-sm:   clamp(0.875rem, 0.8rem  + 0.35vw, 1rem);
+  --text-base: clamp(1rem,     0.95rem + 0.25vw, 1.125rem);
+  --text-lg:   clamp(1.125rem, 1rem    + 0.75vw, 1.5rem);
+  --text-xl:   clamp(1.5rem,   1.2rem  + 1.25vw, 2.25rem);
+  --text-2xl:  clamp(2rem,     1.2rem  + 2.5vw,  3.5rem);
+
+  /* Fonts */
+  --font-body: 'Nunito', 'Segoe UI', sans-serif;
+  --font-display: 'Baloo 2', 'Nunito', sans-serif;
+
+  /* Spacing */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.25rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-interactive: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Content widths */
+  --content-narrow: 640px;
+  --content-default: 960px;
+  --content-wide: 1200px;
+}
+
+/* ========== LIGHT MODE (default) ========== */
+:root, [data-theme="light"] {
+  --color-bg:             #fef7f5;
+  --color-surface:        #ffffff;
+  --color-surface-2:      #fdf0ed;
+  --color-surface-offset: #f8e8e3;
+  --color-divider:        #f0ddd7;
+  --color-border:         #e6cfc8;
+
+  --color-text:           #3a2028;
+  --color-text-muted:     #7a5a65;
+  --color-text-faint:     #b89da8;
+  --color-text-inverse:   #ffffff;
+
+  /* Primary — Warm Pink */
+  --color-primary:        #e4637e;
+  --color-primary-hover:  #d14f6b;
+  --color-primary-active: #be3d5a;
+  --color-primary-light:  #fde8ed;
+  --color-primary-surface: #fef1f4;
+
+  /* Accent — Coral Peach */
+  --color-accent:         #f0906a;
+  --color-accent-hover:   #e67d55;
+  --color-accent-light:   #fef0e8;
+
+  /* Success — Soft Green */
+  --color-success:        #5bb87a;
+  --color-success-light:  #e8f7ee;
+
+  /* Error — Warm Red */
+  --color-error:          #d94e4e;
+  --color-error-light:    #fde8e8;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(58, 32, 40, 0.06);
+  --shadow-md: 0 4px 12px rgba(58, 32, 40, 0.08);
+  --shadow-lg: 0 8px 30px rgba(58, 32, 40, 0.12);
+  --shadow-glow: 0 0 20px rgba(228, 99, 126, 0.15);
+}
