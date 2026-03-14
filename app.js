@@ -1028,6 +1028,7 @@ function enterApp() {
         <i data-lucide="menu" style="width:24px;height:24px"></i>
       </button>
       <span style="font-family:var(--font-display);font-weight:700;color:var(--color-primary);font-size:var(--text-lg)">Story Quest</span>
+      <div id="mobile-kid-switcher" class="mobile-kid-switcher"></div>
     </div>
     <aside class="sidebar" id="sidebar"></aside>
     <main class="main-content" id="main-content"></main>
@@ -1142,6 +1143,21 @@ function renderSidebar() {
     </div>
   `;
   lucide.createIcons({nameAttr:"data-lucide"});
+
+  // Also update mobile kid switcher
+  const mobileKS = document.getElementById("mobile-kid-switcher");
+  if (mobileKS) {
+    if (state.kids.length > 1) {
+      mobileKS.innerHTML = state.kids.map((kid, i) => {
+        const active = i === state.activeKidIndex ? 'active' : '';
+        return `<button class="mobile-kid-btn ${active}" onclick="switchKid(${i})" title="${kid.name}">
+          <span class="mobile-kid-face">${kid.avatar.face}</span>
+        </button>`;
+      }).join('');
+    } else {
+      mobileKS.innerHTML = '';
+    }
+  }
 }
 
 // ======== LIBRARY ========
