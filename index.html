@@ -22,6 +22,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Story Quest — Learning Adventure</title>
 <meta name="description" content="A fun learning app for young readers. Read stories, explore science, learn vocabulary, answer quiz questions, and earn badges!">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
+<!-- Cache buster: force reload if stale -->
+<script>
+(function(){
+  var V = "20260314b";
+  if (localStorage.getItem("sq_v") !== V) {
+    localStorage.setItem("sq_v", V);
+    if (window.caches) {
+      caches.keys().then(function(names) {
+        names.forEach(function(n) { caches.delete(n); });
+      });
+    }
+    location.reload(true);
+  }
+})();
+</script>
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,25 +54,25 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <!-- Styles -->
-<link rel="stylesheet" href="./base.css?v=1773469957">
-<link rel="stylesheet" href="./style.css?v=1773469957">
-<link rel="stylesheet" href="./science-styles.css?v=1773469957">
-<link rel="stylesheet" href="./english-styles.css?v=1773469957">
-<link rel="stylesheet" href="./math-styles.css?v=1773469957">
-<link rel="stylesheet" href="./mobile-force.css?v=1773469957">
+<link rel="stylesheet" href="./base.css?v=20260314b">
+<link rel="stylesheet" href="./style.css?v=20260314b">
+<link rel="stylesheet" href="./science-styles.css?v=20260314b">
+<link rel="stylesheet" href="./english-styles.css?v=20260314b">
+<link rel="stylesheet" href="./math-styles.css?v=20260314b">
+<link rel="stylesheet" href="./mobile-force.css?v=20260314b">
 </head>
 <body>
   <div id="app"></div>
 
   <!-- Data -->
-  <script src="./stories.js?v=1773469957"></script>
-  <script src="./science.js?v=1773469957"></script>
-  <script src="./science-views.js?v=1773469957"></script>
-  <script src="./english.js?v=1773469957"></script>
-  <script src="./english-views.js?v=1773469957"></script>
-  <script src="./math.js?v=1773469957"></script>
-  <script src="./math-views.js?v=1773469957"></script>
+  <script src="./stories.js?v=20260314b"></script>
+  <script src="./science.js?v=20260314b"></script>
+  <script src="./science-views.js?v=20260314b"></script>
+  <script src="./english.js?v=20260314b"></script>
+  <script src="./english-views.js?v=20260314b"></script>
+  <script src="./math.js?v=20260314b"></script>
+  <script src="./math-views.js?v=20260314b"></script>
   <!-- App -->
-  <script src="./app.js?v=1773469957"></script>
+  <script src="./app.js?v=20260314b"></script>
 </body>
 </html>
