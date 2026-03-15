@@ -629,3 +629,215 @@
     padding: var(--space-1) var(--space-2);
   }
 }
+
+/* ===== MATH SECTIONS (Lessons/Games separation) ===== */
+.math-section {
+  margin-bottom: var(--space-6, 1.5rem);
+}
+
+.math-section-title {
+  font-family: 'Baloo 2', cursive;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--color-text, #1e293b);
+  margin: 0 0 var(--space-1, 0.25rem) 0;
+}
+
+.math-section-desc {
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-text-muted, #64748b);
+  margin: 0 0 var(--space-3, 0.75rem) 0;
+}
+
+/* Tier badge on cards */
+.math-card-tag.beginner { background: #4CAF50 !important; }
+.math-card-tag.intermediate { background: #FFB300 !important; }
+.math-card-tag.advanced { background: #FF7043 !important; }
+
+/* ===== DAILY MATH CHALLENGE ===== */
+.math-daily-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.math-daily-banner::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(ellipse at 30% 50%, rgba(255,215,0,0.08), transparent 60%),
+              radial-gradient(ellipse at 80% 30%, rgba(138,43,226,0.06), transparent 50%);
+  pointer-events: none;
+}
+.math-daily-banner:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(15,52,96,0.3);
+}
+.math-daily-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  z-index: 1;
+}
+.math-daily-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  animation: dailyPulse 2s ease-in-out infinite;
+}
+@keyframes dailyPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+.math-daily-info { z-index: 1; }
+.math-daily-title {
+  font-family: 'Baloo 2', cursive;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+.math-daily-desc {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.7);
+  margin: 2px 0 0 0;
+}
+.math-daily-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 1;
+}
+.math-daily-streak {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #fff;
+}
+.math-streak-fire {
+  font-size: 1.4rem;
+}
+.math-streak-num {
+  font-family: 'Baloo 2', cursive;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #ffd700;
+  line-height: 1;
+}
+.math-streak-label {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.math-daily-play-btn {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  color: #1a1a2e;
+  border: none;
+  border-radius: 20px;
+  padding: 0.45rem 1.2rem;
+  font-family: 'Baloo 2', cursive;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+.math-daily-play-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(255,215,0,0.4);
+}
+
+/* Daily Results */
+.math-daily-results-info {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+.math-daily-result-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--color-bg-card, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text, #1e293b);
+}
+.math-daily-result-item.streak-bonus {
+  background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+  border-color: #ffd700;
+  color: #856404;
+}
+.math-daily-result-icon {
+  font-size: 1.2rem;
+}
+
+/* Review section */
+.math-review {
+  margin-top: 1.25rem;
+  text-align: left;
+}
+.math-review h3 {
+  font-family: 'Baloo 2', cursive;
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+.math-review-item {
+  background: var(--color-bg-card, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.5rem;
+}
+.math-review-q {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.35rem;
+}
+.math-review-wrong {
+  color: #e74c3c;
+  font-size: 0.85rem;
+}
+.math-review-correct {
+  color: #27ae60;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.math-review-hint {
+  color: var(--color-text-muted, #64748b);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .math-daily-banner {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  .math-daily-left {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .math-daily-right {
+    flex-direction: row;
+    gap: 1rem;
+  }
+}
