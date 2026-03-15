@@ -3331,3 +3331,55 @@
   pointer-events: none;
   border-color: var(--color-success);
 }
+
+/* ===== PET STAGE VISUAL DIFFERENTIATION ===== */
+/* Baby: small, gentle bob */
+.pet-emoji.pet-stage-baby {
+  font-size: 3rem;
+  animation: petBabyBob 2.5s ease-in-out infinite;
+}
+@keyframes petBabyBob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.01); }
+}
+
+/* Growing/Teen: medium, slightly bouncy */
+.pet-emoji.pet-stage-teen {
+  font-size: 3.8rem;
+  animation: petTeenBounce 2.2s ease-in-out infinite;
+}
+@keyframes petTeenBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(-5px) scale(1.03); }
+  60% { transform: translateY(-2px) scale(1.01); }
+}
+
+/* Grown Up: full size, gentle glow */
+.pet-emoji.pet-stage-adult {
+  font-size: 4.5rem;
+  animation: petAdultIdle 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px rgba(255,182,193,0.4));
+}
+@keyframes petAdultIdle {
+  0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 6px rgba(255,182,193,0.4)); }
+  50% { transform: translateY(-5px) scale(1.03); filter: drop-shadow(0 0 10px rgba(255,182,193,0.5)); }
+}
+
+/* Legendary: biggest, rainbow glow + sparkle */
+.pet-emoji.pet-legendary {
+  font-size: 5rem;
+}
+
+/* Pet collection card stage indicators */
+.pet-coll-emoji { position: relative; }
+.pet-coll-stage-baby .pet-coll-emoji { font-size: 1.8rem; }
+.pet-coll-stage-teen .pet-coll-emoji { font-size: 2.2rem; }
+.pet-coll-stage-adult .pet-coll-emoji { font-size: 2.5rem; filter: drop-shadow(0 0 4px rgba(255,182,193,0.4)); }
+.pet-coll-stage-legendary .pet-coll-emoji { font-size: 2.5rem; filter: drop-shadow(0 0 8px rgba(255,215,0,0.5)); animation: petCollLegGlow 2s ease-in-out infinite; }
+@keyframes petCollLegGlow {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(255,215,0,0.5)); }
+  50% { filter: drop-shadow(0 0 14px rgba(255,107,138,0.6)); }
+}
+
+/* Pet evolution step styling per stage */
+.pet-evo-step.reached .pet-evo-emoji { filter: drop-shadow(0 0 4px rgba(255,182,193,0.5)); }
