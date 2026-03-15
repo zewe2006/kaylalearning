@@ -557,6 +557,42 @@ const PET_TYPES = [
   { id: "unicorn", name: "Unicorn", emoji: "🦄", babyEmoji: "🐴", teenEmoji: "🦄", adultEmoji: "🦄", legendaryEmoji: "🦄", cost: 150 }
 ];
 
+const PET_SKINS = {
+  cat: [
+    { id: "default", label: "Orange Tabby", baby: "\ud83d\udc31", teen: "\ud83d\ude3a", adult: "\ud83d\ude38", legendary: "\ud83d\ude3b" },
+    { id: "black", label: "Black Cat", baby: "\ud83d\udc08\u200d\u2b1b", teen: "\ud83d\udc08\u200d\u2b1b", adult: "\ud83d\udc08", legendary: "\ud83d\ude3c" },
+    { id: "tiger", label: "Tiger Cub", baby: "\ud83d\udc2f", teen: "\ud83d\udc2f", adult: "\ud83d\udc05", legendary: "\ud83d\udc05" },
+    { id: "lion", label: "Lion Cub", baby: "\ud83e\udd81", teen: "\ud83e\udd81", adult: "\ud83e\udd81", legendary: "\ud83e\udd81" },
+    { id: "leopard", label: "Leopard", baby: "\ud83d\udc06", teen: "\ud83d\udc06", adult: "\ud83d\udc06", legendary: "\ud83d\udc06" }
+  ],
+  dog: [
+    { id: "default", label: "Golden Pup", baby: "\ud83d\udc36", teen: "\ud83d\udc15", adult: "\ud83e\uddae", legendary: "\ud83d\udc3a" },
+    { id: "poodle", label: "Poodle", baby: "\ud83d\udc29", teen: "\ud83d\udc29", adult: "\ud83d\udc29", legendary: "\ud83d\udc29" },
+    { id: "fox", label: "Fox", baby: "\ud83e\udd8a", teen: "\ud83e\udd8a", adult: "\ud83e\udd8a", legendary: "\ud83e\udd8a" },
+    { id: "wolf", label: "Wolf", baby: "\ud83d\udc3a", teen: "\ud83d\udc3a", adult: "\ud83d\udc15", legendary: "\ud83d\udc3a" }
+  ],
+  bunny: [
+    { id: "default", label: "White Bunny", baby: "\ud83d\udc30", teen: "\ud83d\udc07", adult: "\ud83d\udc30", legendary: "\ud83d\udc07" },
+    { id: "hamster", label: "Hamster", baby: "\ud83d\udc39", teen: "\ud83d\udc39", adult: "\ud83d\udc39", legendary: "\ud83d\udc39" },
+    { id: "mouse", label: "Mouse", baby: "\ud83d\udc2d", teen: "\ud83d\udc01", adult: "\ud83d\udc01", legendary: "\ud83d\udc2d" }
+  ],
+  owl: [
+    { id: "default", label: "Barn Owl", baby: "\ud83d\udc23", teen: "\ud83e\udd89", adult: "\ud83e\udd85", legendary: "\ud83d\udd4a\ufe0f" },
+    { id: "parrot", label: "Parrot", baby: "\ud83e\udd9c", teen: "\ud83e\udd9c", adult: "\ud83e\udd9c", legendary: "\ud83e\udd9c" },
+    { id: "penguin", label: "Penguin", baby: "\ud83d\udc27", teen: "\ud83d\udc27", adult: "\ud83d\udc27", legendary: "\ud83d\udc27" },
+    { id: "flamingo", label: "Flamingo", baby: "\ud83e\udda9", teen: "\ud83e\udda9", adult: "\ud83e\udda9", legendary: "\ud83e\udda9" }
+  ],
+  dragon: [
+    { id: "default", label: "Fire Dragon", baby: "\ud83e\udd5a", teen: "\ud83e\udd8e", adult: "\ud83d\udc09", legendary: "\ud83d\udc32" },
+    { id: "dino", label: "Dinosaur", baby: "\ud83e\udd95", teen: "\ud83e\udd95", adult: "\ud83e\udd96", legendary: "\ud83e\udd96" },
+    { id: "snake", label: "Serpent", baby: "\ud83d\udc0d", teen: "\ud83d\udc0d", adult: "\ud83d\udc32", legendary: "\ud83d\udc09" }
+  ],
+  unicorn: [
+    { id: "default", label: "Classic Unicorn", baby: "\ud83d\udc34", teen: "\ud83e\udd84", adult: "\ud83e\udd84", legendary: "\ud83e\udd84" },
+    { id: "deer", label: "Deer", baby: "\ud83e\udd8c", teen: "\ud83e\udd8c", adult: "\ud83e\udd8c", legendary: "\ud83e\udd8c" }
+  ]
+};
+
 const PET_STAGES = [
   { stage: "baby", label: "Baby", xpNeeded: 0, feedingsNeeded: 0 },
   { stage: "teen", label: "Growing", xpNeeded: 100, feedingsNeeded: 5 },
