@@ -29,7 +29,8 @@ function resetMathState() {
     finished: false,
     resultsProcessed: false,
     showHint: false,
-    answered: false
+    answered: false,
+    isDaily: false
   };
 }
 
@@ -53,6 +54,21 @@ function initMathProgress() {
   if (!m.totalStars) m.totalStars = 0;
   if (!m.gameScores) m.gameScores = {};
   if (!m.completedIds) m.completedIds = {};
+  // Daily challenge tracking
+  if (!m.dailyChallenge) m.dailyChallenge = { lastDate: null, streak: 0, bestStreak: 0, totalCompleted: 0, todayScore: null };
+  var dc = m.dailyChallenge;
+  var today = getDailyChallengeDate();
+  // Reset streak if they missed a day
+  if (dc.lastDate && dc.lastDate !== today) {
+    var last = new Date(dc.lastDate);
+    var now = new Date(today);
+    var diffDays = Math.round((now - last) / (1000 * 60 * 60 * 24));
+    if (diffDays > 1) {
+      dc.streak = 0; // Streak broken
+    }
+  }
+  if (!dc.bestStreak) dc.bestStreak = 0;
+  if (!dc.totalCompleted) dc.totalCompleted = 0;
 }
 
 function getMathStars(score, total) {
@@ -81,66 +97,120 @@ function renderMathHome(container) {
   initMathProgress();
   var m = state.user.math;
 
+  // Collect all lessons and games across tiers
+  var tiers = ["beginner", "intermediate", "advanced"];
+  var tierLabels = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" };
+  var tierColors = { beginner: "#4CAF50", intermediate: "#FFB300", advanced: "#FF7043" };
+
+  var allLessons = [];
+  var allGames = [];
+
+  tiers.forEach(function(tier) {
+    if (typeof MATH_LESSONS !== "undefined" && MATH_LESSONS[tier]) {
+      MATH_LESSONS[tier].forEach(function(lesson) {
+        allLessons.push({ item: lesson, tier: tier, type: "lesson" });
+      });
+    }
+    if (typeof MATH_GAMES !== "undefined" && MATH_GAMES[tier]) {
+      MATH_GAMES[tier].forEach(function(game) {
+        allGames.push({ item: game, tier: tier, type: "game" });
+      });
+    }
+  });
+
+  function renderLessonCard(entry) {
+    var lesson = entry.item;
+    var tier = entry.tier;
+    var done = m.completedIds[lesson.id];
+    var html = '<div class="math-card' + (done ? ' completed' : '') + '" onclick="startMathLesson(\'' + lesson.id + '\', \'' + tier + '\')">';
+    if (done) html += '<div class="math-card-status">\u2705</div>';
+    html += '<div class="math-card-icon">' + lesson.icon + '</div>';
+    html += '<div class="math-card-title">' + lesson.title + '</div>';
+    html += '<div class="math-card-desc">' + lesson.description + '</div>';
+    html += '<span class="math-card-tag ' + tier + '" style="background:' + tierColors[tier] + '">' + tierLabels[tier] + '</span>';
+    html += '</div>';
+    return html;
+  }
+
+  function renderGameCard(entry) {
+    var game = entry.item;
+    var tier = entry.tier;
+    var done = m.completedIds[game.id];
+    var sc = m.gameScores[game.id];
+    var html = '<div class="math-card' + (done ? ' completed' : '') + '" onclick="startMathGame(\'' + game.id + '\', \'' + tier + '\')">';
+    if (done) html += '<div class="math-card-status">\u2705</div>';
+    html += '<div class="math-card-icon">' + game.icon + '</div>';
+    html += '<div class="math-card-title">' + game.title + '</div>';
+    html += '<div class="math-card-desc">' + game.description + '</div>';
+    html += '<span class="math-card-tag ' + tier + '" style="background:' + tierColors[tier] + '">' + tierLabels[tier] + '</span>';
+    if (sc) {
+      var pct = Math.round((sc.score / sc.total) * 100);
+      html += '<div class="math-card-score">Best: ' + sc.score + '/' + sc.total + ' (' + pct + '%)</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
   var html = '<div class="math-home">';
-  html += '<h2>\u{1F680} Math Galaxy</h2>';
+  html += '<h2>\ud83d\ude80 Math Galaxy</h2>';
   html += '<p class="math-subtitle">Explore the universe of numbers! Learn math concepts in lessons, then test your skills in games.</p>';
 
   // Stats bar
   html += '<div class="math-stats-bar">';
-  html += '<div class="math-stat-chip"><span class="stat-icon">\u{1F4DA}</span> ' + m.lessonsCompleted + ' Lessons</div>';
-  html += '<div class="math-stat-chip"><span class="stat-icon">\u{1F3AE}</span> ' + m.gamesCompleted + ' Games</div>';
-  html += '<div class="math-stat-chip"><span class="stat-icon">\u{2B50}</span> ' + m.totalStars + ' Stars</div>';
-  html += '<div class="math-stat-chip"><span class="stat-icon">\u{1F31F}</span> ' + m.perfectGames + ' Perfect</div>';
+  html += '<div class="math-stat-chip"><span class="stat-icon">\ud83d\udcda</span> ' + m.lessonsCompleted + ' Lessons</div>';
+  html += '<div class="math-stat-chip"><span class="stat-icon">\ud83c\udfae</span> ' + m.gamesCompleted + ' Games</div>';
+  html += '<div class="math-stat-chip"><span class="stat-icon">\u2b50</span> ' + m.totalStars + ' Stars</div>';
+  html += '<div class="math-stat-chip"><span class="stat-icon">\ud83c\udf1f</span> ' + m.perfectGames + ' Perfect</div>';
   html += '</div>';
 
-  var tiers = ["beginner", "intermediate", "advanced"];
-  var tierLabels = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" };
-  var tierDescs = { beginner: "Start your journey with the basics", intermediate: "Level up your math skills", advanced: "Master complex problems" };
+  // Daily Challenge Section
+  var dc = m.dailyChallenge || {};
+  var today = getDailyChallengeDate();
+  var completedToday = dc.lastDate === today && dc.todayScore !== null && dc.todayScore !== undefined;
+  var streak = dc.streak || 0;
+  var bestStreak = dc.bestStreak || 0;
 
-  tiers.forEach(function(tier) {
-    html += '<div class="math-tier">';
-    html += '<div class="math-tier-header">';
-    html += '<div class="math-tier-badge ' + tier + '">' + (tier === "beginner" ? "B" : tier === "intermediate" ? "I" : "A") + '</div>';
-    html += '<div class="math-tier-info"><h3>' + tierLabels[tier] + '</h3><p>' + tierDescs[tier] + '</p></div>';
-    html += '</div>';
+  html += '<div class="math-daily-banner" onclick="' + (completedToday ? '' : 'startDailyChallenge()') + '">';
+  html += '<div class="math-daily-left">';
+  html += '<div class="math-daily-icon">' + (completedToday ? '\u2705' : '\ud83c\udf1f') + '</div>';
+  html += '<div class="math-daily-info">';
+  html += '<h3 class="math-daily-title">' + (completedToday ? 'Challenge Complete!' : 'Daily Math Challenge') + '</h3>';
+  if (completedToday) {
+    html += '<p class="math-daily-desc">You scored ' + dc.todayScore + '/5 today. Come back tomorrow!</p>';
+  } else {
+    html += '<p class="math-daily-desc">5 fresh questions every day. Can you keep your streak?</p>';
+  }
+  html += '</div></div>';
+  html += '<div class="math-daily-right">';
+  html += '<div class="math-daily-streak">';
+  html += '<span class="math-streak-fire">\ud83d\udd25</span>';
+  html += '<span class="math-streak-num">' + streak + '</span>';
+  html += '<span class="math-streak-label">day streak</span>';
+  html += '</div>';
+  if (!completedToday) {
+    html += '<button class="math-daily-play-btn" onclick="startDailyChallenge(); event.stopPropagation();">Play Now</button>';
+  }
+  html += '</div></div>';
 
-    html += '<div class="math-card-grid">';
-
-    // Lessons
-    if (typeof MATH_LESSONS !== "undefined" && MATH_LESSONS[tier]) {
-      MATH_LESSONS[tier].forEach(function(lesson) {
-        var done = m.completedIds[lesson.id];
-        html += '<div class="math-card' + (done ? ' completed' : '') + '" onclick="startMathLesson(\'' + lesson.id + '\', \'' + tier + '\')">';
-        if (done) html += '<div class="math-card-status">\u{2705}</div>';
-        html += '<div class="math-card-icon">' + lesson.icon + '</div>';
-        html += '<div class="math-card-title">' + lesson.title + '</div>';
-        html += '<div class="math-card-desc">' + lesson.description + '</div>';
-        html += '<span class="math-card-tag lesson">Lesson</span>';
-        html += '</div>';
-      });
-    }
-
-    // Games
-    if (typeof MATH_GAMES !== "undefined" && MATH_GAMES[tier]) {
-      MATH_GAMES[tier].forEach(function(game) {
-        var done = m.completedIds[game.id];
-        var sc = m.gameScores[game.id];
-        html += '<div class="math-card' + (done ? ' completed' : '') + '" onclick="startMathGame(\'' + game.id + '\', \'' + tier + '\')">';
-        if (done) html += '<div class="math-card-status">\u{2705}</div>';
-        html += '<div class="math-card-icon">' + game.icon + '</div>';
-        html += '<div class="math-card-title">' + game.title + '</div>';
-        html += '<div class="math-card-desc">' + game.description + '</div>';
-        html += '<span class="math-card-tag game">Game</span>';
-        if (sc) {
-          var pct = Math.round((sc.score / sc.total) * 100);
-          html += '<div class="math-card-score">Best: ' + sc.score + '/' + sc.total + ' (' + pct + '%)</div>';
-        }
-        html += '</div>';
-      });
-    }
-
-    html += '</div></div>';
+  // Lessons Section
+  html += '<div class="math-section">';
+  html += '<h3 class="math-section-title">\ud83d\udcda Lessons</h3>';
+  html += '<p class="math-section-desc">Learn new math concepts step by step</p>';
+  html += '<div class="math-card-grid">';
+  allLessons.forEach(function(entry) {
+    html += renderLessonCard(entry);
   });
+  html += '</div></div>';
+
+  // Games Section
+  html += '<div class="math-section">';
+  html += '<h3 class="math-section-title">\ud83c\udfae Games</h3>';
+  html += '<p class="math-section-desc">Practice what you learned with fun challenges</p>';
+  html += '<div class="math-card-grid">';
+  allGames.forEach(function(entry) {
+    html += renderGameCard(entry);
+  });
+  html += '</div></div>';
 
   html += '<footer class="app-footer"><a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer">Created with Perplexity Computer</a></footer>';
   html += '</div>';
@@ -366,6 +436,11 @@ function mathNextQuestion() {
 
 // ======== RESULTS ========
 function renderMathResults(container) {
+  // Route daily challenge to its own results screen
+  if (mathState.isDaily) {
+    renderDailyResults(container);
+    return;
+  }
   initMathProgress();
   var game = mathState.currentGame;
   if (!game) { navigate("math"); return; }
@@ -447,4 +522,139 @@ function retryMathGame() {
     }
   });
   startMathGame(game.id, tier);
+}
+
+// ======== DAILY CHALLENGE ========
+
+function startDailyChallenge() {
+  initMathProgress();
+  var m = state.user.math;
+  var today = getDailyChallengeDate();
+
+  // Don't replay if already done today
+  if (m.dailyChallenge.lastDate === today && m.dailyChallenge.todayScore !== null && m.dailyChallenge.todayScore !== undefined) {
+    return;
+  }
+
+  var challenge = generateDailyChallenge();
+  resetMathState();
+  mathState.currentGame = {
+    id: "daily-challenge-" + today,
+    title: "Daily Challenge",
+    icon: "\ud83c\udf1f",
+    questions: challenge.questions
+  };
+  mathState.questionIndex = 0;
+  mathState.score = 0;
+  mathState.totalQuestions = challenge.questions.length;
+  mathState.answers = [];
+  mathState.finished = false;
+  mathState.resultsProcessed = false;
+  mathState.isDaily = true;
+  navigate("math-game");
+}
+
+function renderDailyResults(container) {
+  initMathProgress();
+  var m = state.user.math;
+  var score = mathState.score;
+  var total = mathState.totalQuestions;
+  var stars = getMathStars(score, total);
+  var pct = Math.round((score / total) * 100);
+
+  // Process results once
+  if (!mathState.resultsProcessed) {
+    mathState.resultsProcessed = true;
+    var dc = m.dailyChallenge;
+    var today = getDailyChallengeDate();
+    dc.todayScore = score;
+
+    // Update streak
+    if (dc.lastDate !== today) {
+      dc.streak = (dc.streak || 0) + 1;
+      dc.totalCompleted = (dc.totalCompleted || 0) + 1;
+    }
+    if (dc.streak > (dc.bestStreak || 0)) {
+      dc.bestStreak = dc.streak;
+    }
+    dc.lastDate = today;
+
+    // Award XP — bonus for streaks
+    var xpBase = score * 5;
+    var streakBonus = dc.streak >= 7 ? 20 : dc.streak >= 3 ? 10 : 0;
+    var totalXP = xpBase + streakBonus;
+    if (typeof awardXP === "function") {
+      awardXP(totalXP, "Daily Math Challenge", "daily-math-" + today);
+    }
+
+    // Update math stats
+    m.gamesCompleted = (m.gamesCompleted || 0) + 1;
+    m.totalStars = (m.totalStars || 0) + stars;
+    if (pct >= 100) m.perfectGames = (m.perfectGames || 0) + 1;
+
+    if (typeof saveStateNow === "function") saveStateNow();
+    else if (typeof saveState === "function") saveState();
+  }
+
+  var dc = m.dailyChallenge;
+  var xpBase = score * 5;
+  var streakBonus = dc.streak >= 7 ? 20 : dc.streak >= 3 ? 10 : 0;
+
+  var html = '<div class="math-results math-daily-results">';
+  html += '<div class="math-results-header">';
+  html += '<div class="math-results-emoji">' + (pct >= 80 ? '\ud83c\udf1f' : pct >= 60 ? '\u2b50' : '\ud83d\udcaa') + '</div>';
+  html += '<h2>Daily Challenge ' + (pct >= 100 ? 'Perfect!' : 'Complete!') + '</h2>';
+  html += '</div>';
+
+  html += '<div class="math-results-score">';
+  html += '<div class="math-score-big">' + score + '/' + total + '</div>';
+  html += '<div class="math-score-pct">' + pct + '%</div>';
+  html += '</div>';
+
+  html += '<div class="math-stars-row">';
+  for (var s = 0; s < 3; s++) {
+    html += '<span class="math-star ' + (s < stars ? 'earned' : '') + '">\u2b50</span>';
+  }
+  html += '</div>';
+
+  // Streak + XP info
+  html += '<div class="math-daily-results-info">';
+  html += '<div class="math-daily-result-item"><span class="math-daily-result-icon">\ud83d\udd25</span><span>' + dc.streak + ' day streak</span></div>';
+  html += '<div class="math-daily-result-item"><span class="math-daily-result-icon">\u2b50</span><span>+' + xpBase + ' XP earned</span></div>';
+  if (streakBonus > 0) {
+    html += '<div class="math-daily-result-item streak-bonus"><span class="math-daily-result-icon">\ud83d\ude80</span><span>+' + streakBonus + ' streak bonus!</span></div>';
+  }
+  if (dc.bestStreak > 1) {
+    html += '<div class="math-daily-result-item"><span class="math-daily-result-icon">\ud83c\udfc6</span><span>Best streak: ' + dc.bestStreak + ' days</span></div>';
+  }
+  html += '</div>';
+
+  // Review wrong answers
+  var game = mathState.currentGame;
+  var wrong = [];
+  mathState.answers.forEach(function(ans, i) {
+    if (ans !== game.questions[i].correct) {
+      wrong.push({ q: game.questions[i], userAns: ans, idx: i });
+    }
+  });
+
+  if (wrong.length > 0) {
+    html += '<div class="math-review">';
+    html += '<h3>Review</h3>';
+    wrong.forEach(function(w) {
+      html += '<div class="math-review-item">';
+      html += '<div class="math-review-q">' + w.q.question + '</div>';
+      html += '<div class="math-review-wrong">\u274c Your answer: ' + w.q.options[w.userAns] + '</div>';
+      html += '<div class="math-review-correct">\u2705 Correct: ' + w.q.options[w.q.correct] + '</div>';
+      html += '<div class="math-review-hint">\ud83d\udca1 ' + w.q.hint + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  html += '<div class="math-results-actions">';
+  html += '<button onclick="navigate(\'math\')">Back to Math Galaxy</button>';
+  html += '</div>';
+  html += '</div>';
+  container.innerHTML = html;
 }
