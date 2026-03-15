@@ -410,3 +410,167 @@ const MATH_BADGES = [
     return (u.math.lessonsCompleted || 0) >= 6 && (u.math.gamesCompleted || 0) >= 9;
   }}
 ];
+
+// ======== DAILY MATH CHALLENGE ========
+// Generates 5 fresh questions daily based on kid's level, seeded by date
+
+function getDailyChallengeDate() {
+  return new Date().toISOString().slice(0, 10); // e.g. "2026-03-15"
+}
+
+function dailySeed(dateStr) {
+  // Simple hash from date string for deterministic daily questions
+  var hash = 0;
+  for (var i = 0; i < dateStr.length; i++) {
+    hash = ((hash << 5) - hash) + dateStr.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function seededRandom(seed) {
+  // LCG pseudo-random from seed
+  var s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) & 0x7fffffff;
+    return s / 0x7fffffff;
+  };
+}
+
+function generateDailyChallenge() {
+  var dateStr = getDailyChallengeDate();
+  var seed = dailySeed(dateStr);
+  var rng = seededRandom(seed);
+
+  // Determine difficulty from age group
+  var ageGroup = (typeof getAgeGroup === "function") ? getAgeGroup() : "all";
+  var difficulty = "mixed"; // default
+  if (ageGroup === "early" || ageGroup === "developing") difficulty = "easy";
+  else if (ageGroup === "proficient") difficulty = "medium";
+  else difficulty = "hard";
+
+  var questions = [];
+  var NUM_QUESTIONS = 5;
+
+  for (var i = 0; i < NUM_QUESTIONS; i++) {
+    var q = generateDailyQuestion(difficulty, rng, i);
+    questions.push(q);
+  }
+
+  return {
+    date: dateStr,
+    difficulty: difficulty,
+    questions: questions
+  };
+}
+
+function generateDailyQuestion(difficulty, rng, index) {
+  // Cycle through operation types
+  var ops;
+  if (difficulty === "easy") {
+    ops = ["add", "sub", "add", "sub", "add"];
+  } else if (difficulty === "medium") {
+    ops = ["add", "sub", "mul", "add", "div"];
+  } else {
+    ops = ["add", "mul", "div", "sub", "mul"];
+  }
+  var op = ops[index % ops.length];
+
+  var a, b, answer, questionText, hint;
+
+  switch (op) {
+    case "add":
+      if (difficulty === "easy") {
+        a = Math.floor(rng() * 40) + 5;
+        b = Math.floor(rng() * 40) + 5;
+      } else if (difficulty === "medium") {
+        a = Math.floor(rng() * 200) + 50;
+        b = Math.floor(rng() * 200) + 50;
+      } else {
+        a = Math.floor(rng() * 500) + 100;
+        b = Math.floor(rng() * 500) + 100;
+      }
+      answer = a + b;
+      questionText = a + " + " + b + " = ?";
+      hint = "Add the ones first, then the tens. Carry if needed!";
+      break;
+
+    case "sub":
+      if (difficulty === "easy") {
+        answer = Math.floor(rng() * 30) + 5;
+        b = Math.floor(rng() * 20) + 3;
+        a = answer + b;
+      } else if (difficulty === "medium") {
+        answer = Math.floor(rng() * 150) + 20;
+        b = Math.floor(rng() * 100) + 15;
+        a = answer + b;
+      } else {
+        answer = Math.floor(rng() * 300) + 50;
+        b = Math.floor(rng() * 200) + 30;
+        a = answer + b;
+      }
+      questionText = a + " - " + b + " = ?";
+      hint = "Subtract column by column from right to left. Borrow if needed!";
+      break;
+
+    case "mul":
+      if (difficulty === "medium") {
+        a = Math.floor(rng() * 9) + 2;
+        b = Math.floor(rng() * 9) + 2;
+      } else {
+        a = Math.floor(rng() * 12) + 2;
+        b = Math.floor(rng() * 12) + 2;
+      }
+      answer = a * b;
+      questionText = a + " \u00D7 " + b + " = ?";
+      hint = "Think of " + a + " groups of " + b + ". You can also skip-count by " + b + "!";
+      break;
+
+    case "div":
+      if (difficulty === "medium") {
+        b = Math.floor(rng() * 8) + 2;
+        answer = Math.floor(rng() * 9) + 2;
+      } else {
+        b = Math.floor(rng() * 11) + 2;
+        answer = Math.floor(rng() * 12) + 2;
+      }
+      a = answer * b;
+      questionText = a + " \u00F7 " + b + " = ?";
+      hint = "Think: what number times " + b + " equals " + a + "?";
+      break;
+  }
+
+  // Generate 4 options: correct + 3 distractors
+  var options = [answer];
+  var attempts = 0;
+  while (options.length < 4 && attempts < 50) {
+    var offset = Math.floor(rng() * Math.max(10, Math.floor(answer * 0.3))) + 1;
+    if (rng() > 0.5) offset = -offset;
+    var wrong = answer + offset;
+    if (wrong > 0 && wrong !== answer && options.indexOf(wrong) === -1) {
+      options.push(wrong);
+    }
+    attempts++;
+  }
+  // Fill remaining if needed
+  while (options.length < 4) {
+    options.push(answer + options.length * 3);
+  }
+
+  // Shuffle options
+  for (var j = options.length - 1; j > 0; j--) {
+    var k = Math.floor(rng() * (j + 1));
+    var temp = options[j];
+    options[j] = options[k];
+    options[k] = temp;
+  }
+
+  var correctIndex = options.indexOf(answer);
+
+  return {
+    question: questionText,
+    options: options,
+    correct: correctIndex,
+    hint: hint
+  };
+}
