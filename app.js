@@ -2804,6 +2804,15 @@ function getPetEmoji() {
   const petType = PET_TYPES.find(p => p.id === state.user.pet.typeId);
   if (!petType) return "";
   const stageIdx = getPetStageIndex();
+  if (stageIdx >= 3) return petType.legendaryEmoji || petType.adultEmoji;
+  if (stageIdx >= 2) return petType.adultEmoji;
+  if (stageIdx === 1) return petType.teenEmoji;
+  return petType.babyEmoji;
+}
+
+function getPetEmojiForStage(petType, stageIdx) {
+  if (!petType) return "";
+  if (stageIdx >= 3) return petType.legendaryEmoji || petType.adultEmoji;
   if (stageIdx >= 2) return petType.adultEmoji;
   if (stageIdx === 1) return petType.teenEmoji;
   return petType.babyEmoji;
@@ -2866,7 +2875,7 @@ function renderPet(container) {
       <div class="pet-display-card">
         <div class="pet-stage-label">${stage.label} ${petType.name}</div>
         <div class="pet-avatar-area">
-          <div class="pet-emoji ${state.petAnimation || ''} ${stageIdx >= 3 ? 'pet-legendary' : ''}" id="pet-emoji">${emoji}</div>
+          <div class="pet-emoji ${state.petAnimation || ''} ${stageIdx === 0 ? 'pet-stage-baby' : stageIdx === 1 ? 'pet-stage-teen' : stageIdx === 2 ? 'pet-stage-adult' : 'pet-legendary'}" id="pet-emoji">${emoji}</div>
           ${accessory.id !== "none" ? `<span class="pet-accessory ${getAccessoryClass(accessory.id)}">${accessory.emoji}</span>` : ""}
         </div>
         <div class="pet-name">${pet.name}</div>
@@ -2891,7 +2900,7 @@ function renderPet(container) {
         <div class="pet-evolution">
           ${PET_STAGES.map((s, i) => `
             <div class="pet-evo-step ${i <= stageIdx ? 'reached' : ''}">
-              <span class="pet-evo-emoji">${i === 0 ? petType.babyEmoji : i === 1 ? petType.teenEmoji : petType.adultEmoji}</span>
+              <span class="pet-evo-emoji">${getPetEmojiForStage(petType, i)}</span>
               <span class="pet-evo-label">${s.label}</span>
             </div>
             ${i < PET_STAGES.length - 1 ? '<div class="pet-evo-arrow">→</div>' : ''}
@@ -2948,10 +2957,10 @@ function renderPet(container) {
               const pt = PET_TYPES.find(t => t.id === p.typeId);
               if (!pt) return '';
               const si = (function(pet) { for (let j = PET_STAGES.length-1; j >= 0; j--) { if (pet.xp >= PET_STAGES[j].xpNeeded && pet.feedings >= PET_STAGES[j].feedingsNeeded) return j; } return 0; })(p);
-              const em = si >= 2 ? pt.adultEmoji : si === 1 ? pt.teenEmoji : pt.babyEmoji;
+              const em = getPetEmojiForStage(pt, si);
               const isActive = i === (state.user.activePetIndex || 0);
               return `
-                <button class="pet-collection-card ${isActive ? 'active' : ''}" onclick="switchActivePet(${i})">
+                <button class="pet-collection-card ${isActive ? 'active' : ''} pet-coll-stage-${si === 0 ? 'baby' : si === 1 ? 'teen' : si >= 3 ? 'legendary' : 'adult'}" onclick="switchActivePet(${i})">
                   <div class="pet-coll-emoji">${em}</div>
                   <div class="pet-coll-name">${p.name}</div>
                   <div class="pet-coll-stage">${PET_STAGES[si].label}</div>
@@ -3001,7 +3010,7 @@ function renderPetAdoption(container) {
             <div class="pet-adopt-emoji">${pet.babyEmoji}</div>
             <h3>${pet.name}</h3>
             <div class="pet-adopt-preview">
-              <span>${pet.babyEmoji} → ${pet.teenEmoji} → ${pet.adultEmoji}</span>
+              <span>${pet.babyEmoji} → ${pet.teenEmoji} → ${pet.adultEmoji} → ${pet.legendaryEmoji || pet.adultEmoji}</span>
             </div>
             ${owned ? '<span class="pet-adopt-cost" style="background:var(--color-success);color:white">✅ Owned</span>' : pet.cost > 0 ? `<span class="pet-adopt-cost ${canAfford ? '' : 'too-expensive'}">⭐ ${pet.cost} XP</span>` : '<span class="pet-adopt-cost free">Free!</span>'}
           </div>
