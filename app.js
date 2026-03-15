@@ -2804,14 +2804,19 @@ function getPetEmoji() {
   const petType = PET_TYPES.find(p => p.id === state.user.pet.typeId);
   if (!petType) return "";
   const stageIdx = getPetStageIndex();
-  if (stageIdx >= 3) return petType.legendaryEmoji || petType.adultEmoji;
-  if (stageIdx >= 2) return petType.adultEmoji;
-  if (stageIdx === 1) return petType.teenEmoji;
-  return petType.babyEmoji;
+  return getPetEmojiForStage(petType, stageIdx, state.user.pet.skin);
 }
 
-function getPetEmojiForStage(petType, stageIdx) {
+function getPetEmojiForStage(petType, stageIdx, skinId) {
   if (!petType) return "";
+  // Check for custom skin
+  if (skinId && typeof PET_SKINS !== "undefined" && PET_SKINS[petType.id]) {
+    var skin = PET_SKINS[petType.id].find(function(s) { return s.id === skinId; });
+    if (skin) {
+      var stages = ["baby", "teen", "adult", "legendary"];
+      return skin[stages[Math.min(stageIdx, 3)]] || skin.baby;
+    }
+  }
   if (stageIdx >= 3) return petType.legendaryEmoji || petType.adultEmoji;
   if (stageIdx >= 2) return petType.adultEmoji;
   if (stageIdx === 1) return petType.teenEmoji;
@@ -2878,7 +2883,7 @@ function renderPet(container) {
           <div class="pet-emoji ${state.petAnimation || ''} ${stageIdx === 0 ? 'pet-stage-baby' : stageIdx === 1 ? 'pet-stage-teen' : stageIdx === 2 ? 'pet-stage-adult' : 'pet-legendary'}" id="pet-emoji">${emoji}</div>
           ${accessory.id !== "none" ? `<span class="pet-accessory ${getAccessoryClass(accessory.id)}">${accessory.emoji}</span>` : ""}
         </div>
-        <div class="pet-name">${pet.name}</div>
+        <div class="pet-name">${pet.name} <button class="pet-rename-btn" onclick="renamePet()" title="Rename pet">✏️</button></div>
         <div class="pet-happiness-bar">
           <span class="pet-happiness-label">${happiness.emoji} ${happiness.label}</span>
           <div class="pet-bar-track">
@@ -2900,7 +2905,7 @@ function renderPet(container) {
         <div class="pet-evolution">
           ${PET_STAGES.map((s, i) => `
             <div class="pet-evo-step ${i <= stageIdx ? 'reached' : ''}">
-              <span class="pet-evo-emoji">${getPetEmojiForStage(petType, i)}</span>
+              <span class="pet-evo-emoji">${getPetEmojiForStage(petType, i, pet.skin)}</span>
               <span class="pet-evo-label">${s.label}</span>
             </div>
             ${i < PET_STAGES.length - 1 ? '<div class="pet-evo-arrow">→</div>' : ''}
@@ -2949,6 +2954,20 @@ function renderPet(container) {
           </div>
         </div>
 
+      <div class="pet-section-card">
+        <h3>🎨 Pet Style</h3>
+        <p class="pet-section-desc">Change how ${pet.name} looks! Pick a style you love.</p>
+        <div class="pet-skin-grid">
+          ${(typeof PET_SKINS !== "undefined" && PET_SKINS[pet.typeId] ? PET_SKINS[pet.typeId] : []).map(function(skin) {
+            var isSelected = (pet.skin || "default") === skin.id;
+            return '<button class="pet-skin-btn ' + (isSelected ? 'selected' : '') + '" onclick="setPetSkin(\'' + skin.id + '\')">' +
+              '<span class="pet-skin-emoji">' + skin.baby + '</span>' +
+              '<span class="pet-skin-label">' + skin.label + '</span>' +
+            '</button>';
+          }).join('')}
+        </div>
+      </div>
+
         <div class="pet-section-card">
           <h3>🏠 My Pet Collection</h3>
           <p class="pet-section-desc">You have ${state.user.pets.length} of ${PET_TYPES.length} pets! Tap a pet to switch to it.</p>
@@ -2957,7 +2976,7 @@ function renderPet(container) {
               const pt = PET_TYPES.find(t => t.id === p.typeId);
               if (!pt) return '';
               const si = (function(pet) { for (let j = PET_STAGES.length-1; j >= 0; j--) { if (pet.xp >= PET_STAGES[j].xpNeeded && pet.feedings >= PET_STAGES[j].feedingsNeeded) return j; } return 0; })(p);
-              const em = getPetEmojiForStage(pt, si);
+              const em = getPetEmojiForStage(pt, si, p.skin);
               const isActive = i === (state.user.activePetIndex || 0);
               return `
                 <button class="pet-collection-card ${isActive ? 'active' : ''} pet-coll-stage-${si === 0 ? 'baby' : si === 1 ? 'teen' : si >= 3 ? 'legendary' : 'adult'}" onclick="switchActivePet(${i})">
@@ -3057,6 +3076,29 @@ function adoptPet(typeId) {
   checkBadges();
   saveStateNow();
   render();
+}
+
+function renamePet() {
+  if (!state.user || !state.user.pet) return;
+  const currentName = state.user.pet.name;
+  const newName = prompt("Enter a new name for your pet:", currentName);
+  if (newName && newName.trim() && newName.trim() !== currentName) {
+    state.user.pet.name = newName.trim();
+    saveStateNow();
+    render();
+    showToast("\u270f\ufe0f", "Renamed!", `Your pet is now called ${newName.trim()}!`);
+  }
+}
+
+function setPetSkin(skinId) {
+  if (!state.user || !state.user.pet) return;
+  state.user.pet.skin = skinId;
+  saveStateNow();
+  render();
+  const petType = PET_TYPES.find(t => t.id === state.user.pet.typeId);
+  const skins = PET_SKINS[state.user.pet.typeId] || [];
+  const skin = skins.find(s => s.id === skinId);
+  showToast("\ud83c\udfa8", "New Look!", `${state.user.pet.name} is now a ${skin ? skin.label : petType.name}!`);
 }
 
 
