@@ -463,8 +463,8 @@ function syncBirthdayPicker(idPrefix) {
   } else {
     hidden.value = "";
   }
-  // If this is the profile birthday, update it live
-  if (idPrefix === "profile-birthday" && typeof setBirthday === "function") {
+  // If this is the profile birthday, update it live (only when all 3 fields are set)
+  if (idPrefix === "profile-birthday" && typeof setBirthday === "function" && hidden.value) {
     setBirthday(hidden.value);
   }
 }
