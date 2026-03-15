@@ -2475,14 +2475,14 @@ function renderVoiceWidget(pageText) {
   }
 
   // ---- DEFAULT / START ----
-  if (voiceMicStatus === "blocked") {
-    // Mic blocked — show explanation + timer-only option
+  if (voiceMicStatus === "blocked" && !hasSpeechRecognition()) {
+    // Both mic and speech recognition unavailable — timer-only
     return '<div class="voice-start-row">' +
-      '<button class="voice-read-aloud-btn" onclick="startReadAloudTimerOnly()"><i data-lucide="book-open" style="width:18px;height:18px"></i><span>Read Aloud</span><span class="voice-hint">Timer mode (open link in browser for full voice features)</span></button>' +
+      '<button class="voice-read-aloud-btn" onclick="startReadAloudTimerOnly()"><i data-lucide="book-open" style="width:18px;height:18px"></i><span>Read Aloud</span><span class="voice-hint">Timer mode</span></button>' +
       '</div>';
   }
 
-  // Mic available or unknown — show full button
+  // Show full mic button — mic will be requested on click (requires user gesture)
   return '<div class="voice-start-row">' +
     '<button class="voice-read-aloud-btn" onclick="startReadAloud()"><i data-lucide="mic" style="width:18px;height:18px"></i><span>Read Aloud</span><span class="voice-hint">Read and get feedback on your words!</span></button>' +
     '</div>';
@@ -3450,8 +3450,8 @@ async function init() {
   } else {
     render();
   }
-  // Probe mic availability so Record button can show if allowed
-  checkMicAvailable().then(avail => { if (avail && state.user) render(); });
+  // NOTE: Don't probe mic at startup — Chrome blocks getUserMedia without a user gesture.
+  // The mic will be requested when the user clicks "Read Aloud" (a real user gesture).
 }
 
 document.addEventListener("DOMContentLoaded", init);
