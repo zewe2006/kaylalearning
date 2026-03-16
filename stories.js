@@ -583,9 +583,10 @@ const PET_SKINS = {
     { id: "flamingo", label: "Flamingo", baby: "\ud83e\udda9", teen: "\ud83e\udda9", adult: "\ud83e\udda9", legendary: "\ud83e\udda9" }
   ],
   dragon: [
-    { id: "default", label: "Fire Dragon", baby: "\ud83e\udd5a", teen: "\ud83e\udd8e", adult: "\ud83d\udc09", legendary: "\ud83d\udc32" },
-    { id: "dino", label: "Dinosaur", baby: "\ud83e\udd95", teen: "\ud83e\udd95", adult: "\ud83e\udd96", legendary: "\ud83e\udd96" },
-    { id: "snake", label: "Serpent", baby: "\ud83d\udc0d", teen: "\ud83d\udc0d", adult: "\ud83d\udc32", legendary: "\ud83d\udc09" }
+    { id: "default", label: "Fire Dragon", baby: "🥚", teen: "🦎", adult: "🐉", legendary: "🐲" },
+    { id: "phoenix", label: "Phoenix", baby: "🐣", teen: "🐦", adult: "🦅", legendary: "🕊️" },
+    { id: "water", label: "Water Dragon", baby: "🐋", teen: "🐬", adult: "🐉", legendary: "🐲" },
+    { id: "croc", label: "Crocodile", baby: "🐊", teen: "🐊", adult: "🐊", legendary: "🐊" }
   ],
   unicorn: [
     { id: "default", label: "Classic Unicorn", baby: "\ud83d\udc34", teen: "\ud83e\udd84", adult: "\ud83e\udd84", legendary: "\ud83e\udd84" },
