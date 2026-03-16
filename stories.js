@@ -554,7 +554,8 @@ const PET_TYPES = [
   { id: "bunny", name: "Bunny", emoji: "🐰", babyEmoji: "🐰", teenEmoji: "🐇", adultEmoji: "🐰", legendaryEmoji: "🐇", cost: 50 },
   { id: "owl", name: "Owlet", emoji: "🦉", babyEmoji: "🐣", teenEmoji: "🦉", adultEmoji: "🦅", legendaryEmoji: "🕊️", cost: 75 },
   { id: "dragon", name: "Dragon", emoji: "🐲", babyEmoji: "🥚", teenEmoji: "🦎", adultEmoji: "🐉", legendaryEmoji: "🐲", cost: 120 },
-  { id: "unicorn", name: "Unicorn", emoji: "🦄", babyEmoji: "🐴", teenEmoji: "🦄", adultEmoji: "🦄", legendaryEmoji: "🦄", cost: 150 }
+  { id: "unicorn", name: "Unicorn", emoji: "🦄", babyEmoji: "🐴", teenEmoji: "🦄", adultEmoji: "🦄", legendaryEmoji: "🦄", cost: 150 },
+  { id: "dino", name: "Dinosaur", emoji: "🦕", babyEmoji: "🥚", teenEmoji: "🦕", adultEmoji: "🦖", legendaryEmoji: "🦖", cost: 90 }
 ];
 
 const PET_SKINS = {
@@ -587,6 +588,11 @@ const PET_SKINS = {
     { id: "phoenix", label: "Phoenix", baby: "🐣", teen: "🐦", adult: "🦅", legendary: "🕊️" },
     { id: "water", label: "Water Dragon", baby: "🐋", teen: "🐬", adult: "🐉", legendary: "🐲" },
     { id: "croc", label: "Crocodile", baby: "🐊", teen: "🐊", adult: "🐊", legendary: "🐊" }
+  ],
+  dino: [
+    { id: "default", label: "T-Rex", baby: "🥚", teen: "🦕", adult: "🦖", legendary: "🦖" },
+    { id: "stego", label: "Stegosaurus", baby: "🥚", teen: "🦕", adult: "🦕", legendary: "🦕" },
+    { id: "raptor", label: "Raptor", baby: "🐦", teen: "🦕", adult: "🦖", legendary: "🦖" }
   ],
   unicorn: [
     { id: "default", label: "Classic Unicorn", baby: "\ud83d\udc34", teen: "\ud83e\udd84", adult: "\ud83e\udd84", legendary: "\ud83e\udd84" },
